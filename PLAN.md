@@ -1,29 +1,31 @@
-# Claude Code Vision — 课程项目规划文档
+# Claude Code Vision — 课程项目规划文档 (v2)
 
-> 一句话目标：在已泄露的 `claude-code` 源码（`src/`）基础上，融合 `Vision-Agents` 的视觉 Processor 体系与 2025 年以来的 GUI Agent / VLM / Screenshot-Driven Dev 等开源精髓，把一个"纯文本 CLI 编程助手"升级为"具备视觉感知、UI 验证闭环和 GUI 操作能力的多模态编程 Agent"。
+> **一句话目标**：在已泄露的 `claude-code` 源码（`src/`）基础上，融合 `Vision-Agents` 的视觉 Processor 体系与 2025 年以来的 GUI Agent / VLM / Screenshot-Driven Dev / Hybrid LLM Routing 等开源精髓，把一个"纯文本 CLI 编程助手"升级为"具备视觉感知、UI 验证闭环、GUI 操作能力，且具有本地/云端混合路由的多模态编程 Agent"。
 
-本文档面向课程作业评审，强调**完整度而非创新**：每一层都对齐 25–26 年的代表性工作，每一块都有可落地的实现路径与回退方案。
+本文档面向课程作业评审，强调**完整度而非创新**。v2 相对 v1 的关键改动：
+- **大幅减少人需要做的事**：周节奏改成"AI 自驱 sprint + 人周末 checkpoint"。
+- **已实际精简 `src/`**：删掉了 100+ 个用不上的子目录/文件，见 §11。
+- **新增 Hybrid VLM Routing 模块**：简单视觉走本地 MiniCPM-V / Moondream，复杂走 Claude / Gemini-Vision，参考 RouteLLM / FrugalGPT 的 router 思路。
 
 ---
 
 ## 1. 项目背景与现状盘点
 
-### 1.1 `src/` (claude-code, TypeScript + Bun + Ink)
+### 1.1 `src/` (claude-code, TypeScript + Bun + Ink) — 精简后
 
-- **Tool 层**（`src/tools/`，~40 个）：`BashTool`、`FileReadTool`（已支持读图/PDF，内部用 `sharp` 压缩到 token 限制内）、`GrepTool`、`WebFetchTool`、`AgentTool`（子 agent）、`SkillTool`、`MCPTool`、`LSPTool` 等。
-- **Command 层**（`src/commands/`，~50 个 slash 命令）：`/commit`、`/review`、`/plan`、`/chrome`、`/voice` 等。
-- **Query 引擎**（`QueryEngine.ts`，46K 行）：tool-call loop、thinking、streaming、cost 跟踪。
-- **Skill 系统**（`src/skills/bundled/`）：已内置 `claude-in-chrome`，通过 `@ant/claude-for-chrome-mcp` 外挂浏览器自动化（点击、截图、读 console），**但仅限 Chrome 扩展场景**。
-- **多模态现状**：仅"FileReadTool 把图片 base64 塞给 Claude"一种被动模式。**没有** processor pipeline、**没有** 本地 VLM、**没有**屏幕级 computer-use、**没有**视觉验证 loop。
+- **保留的 Tool 层**（`src/tools/`，从 ~40 个精简到 26 个）：`BashTool`、`FileReadTool`（已支持读图/PDF，内部用 `sharp` 压缩到 token 限制内）、`FileEditTool`、`FileWriteTool`、`GlobTool`、`GrepTool`、`WebFetchTool`、`WebSearchTool`、`AgentTool`（子 agent 派生）、`SkillTool`、`MCPTool`、`LSPTool`、`NotebookEditTool`、`TodoWriteTool`、`Task*Tool`、`EnterPlanModeTool` 等。
+- **保留的 Command 层**（`src/commands/`，从 ~80 个精简到 24 个）：`/agents`、`/clear`、`/compact`、`/config`、`/context`、`/diff`、`/doctor`、`/files`、`/hooks`、`/init`、`/mcp`、`/memory`、`/model`、`/permissions`、`/plan`、`/plugin`、`/resume`、`/review`、`/session`、`/skills`、`/status`、`/tasks`、`/help`、`/version`、`/exit`、`/env`、`/ctx_viz`。
+- **核心引擎**：`QueryEngine.ts`（46K 行，tool-call loop + thinking + streaming）、`Tool.ts`、`commands.ts`、`tools.ts`、`query.ts` 全部保留。
+- **多模态现状**：仅 "FileReadTool 把图片 base64 塞给 Claude" 一种被动模式。**没有** processor pipeline、**没有** 本地 VLM、**没有** 屏幕级 computer-use、**没有** 视觉验证 loop。
 
 ### 1.2 `Vision-Agents/` (Python + uv workspace)
 
-- **核心抽象**：`Agent`（生命周期 + edge/llm/processors 编排） + `Processor`（`VideoProcessor`/`AudioProcessor`/`Publisher`，可串成流水线）。
-- **视觉插件**：`ultralytics`（YOLO 检测/分割/姿态）、`moondream`（轻量 VLM）、`roboflow`（自训模型）、`nvidia`（Cosmos 世界模型）、`decart`（视频重风格化）。
-- **多模态闭环**：WebRTC（GetStream Edge）→ VAD → STT → LLM（含 OpenAI/Gemini Realtime） → TTS。
-- **痛点**：定位是"实时视频客服/教练"，没有面向编程任务、没有文件系统/shell 工具。
+- **核心抽象**：`Agent`（lifecycle + edge/llm/processors 编排）+ `Processor`（`VideoProcessor`/`AudioProcessor`/`Publisher`，可串成流水线）。
+- **视觉插件**：`ultralytics`（YOLO）、`moondream`（轻量 VLM）、`roboflow`（自训模型）、`nvidia`（Cosmos 世界模型）、`decart`（视频重风格化）。
+- **多模态闭环**：WebRTC → VAD → STT → LLM（OpenAI/Gemini Realtime）→ TTS。
+- **痛点**：定位是"实时视频客服/教练"，没有面向编程任务、没有文件/shell 工具。
 
-### 1.3 自然的融合点
+### 1.3 两者的天然融合点
 
 | 维度 | `claude-code` 提供 | `Vision-Agents` 提供 | 融合产物 |
 |------|--------------------|----------------------|----------|
@@ -38,108 +40,128 @@
 
 ### 2.1 一段话愿景
 
-让 `claude code` 在 CLI 里不仅能读你的代码，还能**看你的屏幕、看你的浏览器渲染结果、看你的设计稿**；能用本地 VLM 做廉价视觉判断、能用 Claude Computer Use 做真实操作、能在每一次代码改动后自动截图比对验证——把"写完不知道对不对"的开环升级成"写–跑–看–改"的闭环。
+让 `claude` 在 CLI 里不仅能读你的代码，还能**看你的屏幕、看你的浏览器渲染结果、看你的设计稿**；能用本地轻量 VLM 做廉价视觉判断、能在复杂场景升级到 Claude/Gemini Vision、能用 Claude Computer Use 做真实 GUI 操作、能在每一次代码改动后自动截图比对验证——把"写完不知道对不对"的开环升级成"写–跑–看–改"的闭环。
 
 ### 2.2 最终交付物
 
-1. **可运行的扩展版 CLI**：`claude-code-vision`，安装后即支持下文 7 大模块的所有命令。
+1. **可运行的扩展版 CLI**：`claude-code-vision`（新 entry，不依赖原 `main.tsx`）。
 2. **Python 视觉 sidecar**（`vision_sidecar/`）：复用 Vision-Agents 的 processor，与 TS 主进程通过 stdio JSON-RPC 通信。
-3. **3 个端到端 demo**：
-   - Demo A: Screenshot-to-Code（给设计图，agent 生成 React 代码并自我截图对照迭代）。
-   - Demo B: Visual Bug Reproduction（agent 启 `npm run dev`，按 prompt 截图浏览器并定位 UI bug）。
-   - Demo C: Pair Programming Live（摄像头/麦克风+屏幕共享，Gemini Live 边看边讲）。
-4. **Mini Benchmark**：自建 20 例 visual-coding 任务 + WebArena 子集 10 例 + Design2Code 子集 10 例的评测脚本与报告。
-5. **课程报告 + 5 分钟 demo 视频**。
+3. **Hybrid Vision Router**：自动决定每个视觉查询走本地还是云端。
+4. **3 个端到端 demo**：
+   - **Demo A — Screenshot-to-Code**：设计图 → agent 写代码 → playwright 截图 → diff → 反思迭代。
+   - **Demo B — Visual Bug Reproduction**：agent 启 dev server → 截图浏览器 → 定位 UI bug → 提交 patch。
+   - **Demo C — GUI Pair Programming**（stretch）：屏幕共享 + Gemini Live 实时讲解。
+5. **Mini Benchmark**：自建 20 例 visual-coding + Design2Code 子集 10 例 + VisualWebArena 子集 10 例。
+6. **课程报告 + 5 分钟 demo 视频**。
 
 ---
 
-## 3. 模块设计（7 大模块）
+## 3. 模块设计（7 模块）
 
 > 设计原则：**每个模块独立可用 + 可退化**。所有视觉计算优先走本地小模型，失败/不够准再升级到 Claude / Gemini-Vision。
 
-### 模块 1：视觉中台 — Vision Processor Pipeline（TS 端抽象 + Python sidecar）
+### 模块 1：视觉中台 — Pipeline + Sidecar + **Router**
 
-**目标**：把 Vision-Agents 的 `Processor` 范式引入 claude-code，做成"任何视觉输入都先过 pipeline，再决定是否给 LLM"。
+**这是最核心的模块，包含三件事**：
 
-- 新增 `src/vision/`：
-  - `pipeline.ts`：定义 `VisionProcessor` 接口（`process(frame): EnrichedFrame`），支持串/并联。
-  - `sidecar.ts`：负责 spawn Python sidecar，封装 `call("yolo.detect", {...})` 这种 JSON-RPC 调用，支持并发与 backpressure。
-- 新增 `vision_sidecar/`（Python）：
-  - 复用 `Vision-Agents/plugins/ultralytics` 的 `YOLOProcessor`、`plugins/moondream` 的 VLM。
-  - 暴露 stdio JSON-RPC server（参考 LSP/MCP 风格），主进程发 `{method, params}`，返回结构化结果（含 bboxes、caption、ocr 等）。
-- 退化路径：sidecar 启动失败时，所有视觉工具回退为"直接把图原样喂给 Claude"。
+#### 1.1 Vision Processor Pipeline（TS 端）
+- 新增 `src/vision/pipeline.ts`：定义 `VisionProcessor` 接口（`process(frame): EnrichedFrame`），支持串/并联。
+- 每个视觉 Tool 调用前后都过 pipeline，方便统一插入降采样、ROI 裁剪、缓存、router。
+
+#### 1.2 Python Sidecar（stdio JSON-RPC）
+- 新增 `vision_sidecar/`：复用 `Vision-Agents/plugins/ultralytics`、`moondream`、`roboflow` 的现成实现。
+- 协议参考 LSP 风格（headers + JSON body），避免端口冲突。
+- TS 端 `src/vision/sidecar.ts` 封装 `call("vlm.caption", {...})`，含超时、重启、并发控制。
+
+#### 1.3 Hybrid Vision Router（核心特色）
+
+**思路**：参考 OpenRouter.ai 的多模型聚合 + RouteLLM / FrugalGPT 的 cost-aware cascading（用户提到的 OpenBMB 思路对应到具体技术上就是这条线；OpenBMB 的 MiniCPM-V 系列正好作为本地后端首选）。
+
+- **路由策略**：
+  1. **规则路由**（第一道）：根据 Tool 类型 + 图片复杂度（分辨率、字数 OCR 估计、UI 元素数）选 tier。
+     - Tier 1（本地）：MiniCPM-V 2.6 (~8B) / Moondream 3 (~2B) / Florence-2 → 处理"图里有什么/读这段文字/找按钮坐标"等。
+     - Tier 2（云端便宜）：Gemini 2.5 Flash Vision / Claude Haiku → 处理"理解这个截图想表达什么"。
+     - Tier 3（云端 SOTA）：Claude Sonnet/Opus / Gemini 2.5 Pro → 复杂推理 / Computer Use 决策。
+  2. **置信度升级**（第二道）：Tier 1 输出含置信度（VLM 自我评分 + 简单 logits-based），低于阈值自动 escalate 到 Tier 2/3。
+  3. **回放路由**（第三道，离线训练用）：所有调用记录到 `~/.claude/router_log.jsonl`，未来可训一个轻量 router（参考 RouteLLM 的 BERT-classifier 路径）。
+- **预算控制**：复用 `cost-tracker.ts`，每个 session 给视觉路由设上限（例如 $0.5/session），超限强制降级。
+- **缓存**：同一图片 hash + 同一 prompt 命中缓存（24h TTL）。
+
+新增文件：
+```
+src/vision/router/
+  ├── router.ts          # 路由主逻辑
+  ├── strategies.ts      # 规则/置信度/回放三种策略
+  ├── budgets.ts         # 预算控制
+  └── cache.ts           # 图像+prompt 哈希缓存
+```
 
 ### 模块 2：视觉工具家族（`src/tools/vision/`）
 
-| Tool | 功能 | 实现 | 对标 |
-|------|------|------|------|
-| `ScreenshotTool` | 截全屏/窗口/区域 | `screencapture`(mac) / `scrot`(linux) / `nircmd`(win) | Anthropic Computer Use |
-| `BrowserVisionTool` | 启 headless Chromium 截网页 / 读 DOM / 执行 JS | playwright | screenshot-to-code |
-| `VisionQATool` | 对图片提问（caption/VQA） | Moondream2 / Qwen2.5-VL sidecar | Moondream |
-| `UIParseTool` | 解析屏幕 UI → 元素树 + 可点击 bbox | OmniParser v2 sidecar | OmniParser |
-| `OCRTool` | 文字识别 | PaddleOCR / RapidOCR sidecar | — |
-| `ImageDiffTool` | 两张图像素/语义对比 | pixelmatch + CLIP cosine | visual-regression |
-| `VideoFrameTool` | 抽取视频关键帧 / 切片 | ffmpeg + scene detect | — |
-| `AnnotateTool` | 给图叠加 bbox/箭头/数字标号 | sharp / pillow sidecar | Set-of-Mark prompting |
+| Tool | 功能 | Tier 1 / 2 / 3 | 对标 |
+|------|------|----------------|------|
+| `ScreenshotTool` | 截全屏/窗口/区域 | OS native command | Anthropic Computer Use |
+| `BrowserVisionTool` | 启 headless Chromium 截网页 + 读 DOM + 执行 JS | playwright | screenshot-to-code |
+| `VisionQATool` | 对图片提问（caption/VQA） | MiniCPM-V / Moondream → Claude | OpenBMB MiniCPM-V |
+| `UIParseTool` | 屏幕→元素树+可点击 bbox | OmniParser v2 → Claude | OmniParser |
+| `OCRTool` | 文字识别 | PaddleOCR/RapidOCR → Claude | — |
+| `ImageDiffTool` | 像素/语义对比 | pixelmatch + CLIP cosine | visual-regression |
+| `VideoFrameTool` | 视频关键帧抽取 | ffmpeg + scene-detect | — |
+| `AnnotateTool` | 图上叠 bbox/编号 | sharp/pillow | Set-of-Mark prompting |
 
-每个 Tool 走 claude-code 既有的 `buildTool` + permission 机制，与现有 `FileReadTool` 风格一致；输出格式遵循 `ToolDef`，可被 LLM 引用。
+每个 Tool 走 `buildTool` + permission，与 `FileReadTool` 风格一致。
 
 ### 模块 3：GUI Agent 子系统（屏幕级 Computer Use）
 
-**目标**：当任务无法用 shell/文件完成时（如"帮我在 Slack 桌面客户端找昨天那条消息"），切换到 GUI 模式。
+**目标**：任务无法用 shell/文件完成时（如"帮我在 Slack 桌面客户端找昨天那条消息"），切到 GUI 模式。
 
-- 新增 `src/coordinator/gui_agent.ts`，作为现有 `coordinator/` 的子 agent。
-- 行动空间：`click(x,y) / type(text) / scroll / hotkey / wait`，通过 sidecar 的 `pyautogui` 或 macOS `cliclick` 实现。
-- 决策路径（两条可选 + 自动 fallback）：
-  1. **远程派**：调用 Anthropic Computer Use API（`computer_20250124` tool），直接由 Claude 决策动作。
-  2. **本地派**：UI-TARS-7B / OS-Atlas / ShowUI sidecar，本地推理（速度更快、离线、便宜）。
+- 新增 `src/coordinator/gui_agent.ts`，与现有 `AgentTool` 派生机制对齐。
+- 行动空间：`click(x,y) / type(text) / scroll / hotkey / wait`。
+- 决策路径（自动 fallback）：
+  1. **远程派**：Anthropic Computer Use API（`computer_20250124` tool）。
+  2. **本地派**：UI-TARS-1.5-7B / OS-Atlas / ShowUI sidecar，本地推理。
 - **安全沙箱**（**必须**）：
-  - 默认开启 dry-run，把动作画在屏幕标注图上让用户确认。
-  - `--yolo` 模式才真实执行；提供 docker + Xvfb 隔离脚本 `scripts/gui_sandbox.sh`。
+  - 默认 dry-run：把动作画在标注图上让用户确认。
+  - `--yolo` 才真实执行；提供 docker+Xvfb 脚本 `scripts/gui_sandbox.sh`。
 - 新 slash command：`/gui <任务>`。
 
 ### 模块 4：Screenshot-Driven Dev 工作流
 
-**目标**：复刻 v0 / screenshot-to-code 体验，但跑在本地、能跨多文件改 repo。
+**目标**：复刻 v0 / screenshot-to-code，但跑在本地、能跨多文件改 repo。
 
 - 新 slash command：`/design2code <图片路径>`。
 - 流程：
-  1. `VisionQATool` 给设计稿生成结构化描述（区域树 + 字体/配色/组件清单）。
-  2. agent 用 `FileWriteTool` scaffold React + Tailwind（或读 `package.json` 用已有栈）。
-  3. agent 起 `npm run dev`，用 `BrowserVisionTool` 截图。
-  4. `ImageDiffTool`（pixelmatch + CLIP）打分；分数低于阈值则 agent 进入 reflection，修改源码后重新截图。
+  1. `VisionQATool` 解析设计图 → 结构化描述（区域树 + 字体/配色/组件清单）。
+  2. agent 用 `FileWriteTool` scaffold React + Tailwind。
+  3. 起 `npm run dev`，`BrowserVisionTool` 截图。
+  4. `ImageDiffTool`（pixelmatch + CLIP）打分；低于阈值则进入 reflection 修源码再截图。
   5. 最多 N 轮（默认 5），输出最终 diff 报告。
-- 对标：Design2Code (Stanford 2024)、WebSight、Pix2Struct、v0、screenshot-to-code。
 
 ### 模块 5：视觉验证闭环（Visual Test Loop）
 
-**目标**：作为日常 dev 的副驾，**每次代码改动后自动跑视觉回归**。
+**目标**：作为日常 dev 副驾，**每次代码改动后自动跑视觉回归**。
 
-- 新 slash command：`/visual-debug`，进入持续模式。
-- 触发器：文件保存或 `git diff` 非空。
-- 步骤：起 dev server → `BrowserVisionTool` 截当前路由 → 与"上次成功"截图做 `ImageDiffTool` → 异常区域 crop 后送 `VisionQATool` 问"这里看起来对吗？预期是 X"。
-- 与现有 `FileEditTool` 联动：如果 LLM 判断异常，自动产出补丁建议。
-- 对标：Percy、Chromatic、Lost-Pixel；论文方向：WebGen-Bench、UI-bench。
+- 新 slash command：`/visual-debug`。
+- 触发器：文件保存或 `git diff` 非空（chokidar watcher）。
+- 步骤：起 dev server → `BrowserVisionTool` 截当前路由 → 与"上次成功"截图 diff → 异常区域 crop 后送 `VisionQATool` 问"这里看起来对吗？预期是 X"。
+- 与 `FileEditTool` 联动：LLM 判异常时自动产出补丁建议。
 
 ### 模块 6：视觉 Memory + 多模态 RAG
 
 **目标**：让 agent 记住"上次见过的截图/UI 状态"，支持"上次那个红色按钮在哪？"。
 
 - 嵌入器：SigLIP2 或 CLIP-Large（sidecar）。
-- 文档级视觉检索：ColPali / ColQwen2（PDF 截图 → patch embedding → late-interaction）。
+- 文档级视觉检索：ColPali / ColQwen2（PDF/截图 patch embedding + late-interaction）。
 - 存储：`~/.claude/vision_memory.lancedb`（LanceDB 本地，零运维）。
-- 新 Tool：`VisionMemorySearchTool`，与现有 `memdir` 体系（已有"持久 memory"模块）打通。
-- 复用现有 `src/services/extractMemories/` 的钩子：会话结束时把关键截图自动入库。
+- 新 Tool：`VisionMemorySearchTool`，与原 `memdir/` 持久记忆体系打通。
 
-### 模块 7：实时多模态模式（Live Mode）
-
-**目标**：高阶玩法，可作为 demo C。复用 claude-code 已有的 `voice` 模块 + Vision-Agents 的 realtime LLM。
+### 模块 7：实时多模态 Live 模式（**stretch，可砍**）
 
 - 新 slash command：`/live`。
 - 输入：屏幕共享流 + 麦克风。
-- 处理：屏幕流 → VideoForwarder（来自 Vision-Agents）→ YOLO/OmniParser → 关键帧降采样（fps=2）→ Gemini Live / OpenAI Realtime API。
-- 输出：TTS 实时讲解 + 在屏幕画 set-of-mark 标注（通过 overlay 窗口）。
-- 工程边界：作为**可选**模块，不阻塞主线交付。
+- 处理：屏幕流 → VideoForwarder（直接复用 Vision-Agents）→ YOLO/OmniParser → 关键帧降采样 → Gemini Live / OpenAI Realtime。
+- 输出：TTS 实时讲解 + 屏幕 set-of-mark overlay。
+- **明确为 stretch**：不阻塞主线交付，时间不够直接砍。
 
 ---
 
@@ -151,204 +173,268 @@
 │                                                                │
 │   ┌──────────────┐    ┌──────────────────┐   ┌──────────────┐  │
 │   │  Commands    │    │  Query Engine    │   │   Skills     │  │
-│   │ /design2code │◀──▶│  (tool loop)     │◀─▶│ claude-in-   │  │
-│   │ /visual-debug│    │                  │   │ chrome ...   │  │
+│   │ /design2code │◀──▶│  (tool loop)     │◀─▶│              │  │
+│   │ /visual-debug│    │                  │   │              │  │
 │   │ /gui  /live  │    └─────────┬────────┘   └──────────────┘  │
 │   └──────────────┘              │                              │
 │                                 ▼                              │
 │   ┌────────────────────────────────────────────────────────┐   │
-│   │   Tool Registry                                        │   │
-│   │   既有: Bash / FileEdit / Grep / WebFetch ...          │   │
-│   │   新增: Screenshot / BrowserVision / VisionQA /        │   │
-│   │         UIParse / OCR / ImageDiff / Annotate ...       │   │
+│   │   Tool Registry  +  Vision Pipeline                    │   │
+│   │   既有: Bash/FileEdit/Grep/WebFetch ...                │   │
+│   │   新增: Screenshot/BrowserVision/VisionQA/             │   │
+│   │         UIParse/OCR/ImageDiff/Annotate ...             │   │
 │   └────────────────────────┬───────────────────────────────┘   │
-│                            │ JSON-RPC over stdio              │
-└────────────────────────────┼───────────────────────────────────┘
-                             ▼
-┌────────────────────────────────────────────────────────────────┐
-│               Python Vision Sidecar (uv workspace)             │
-│                                                                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Processor Pipeline (复用 Vision-Agents)                 │   │
-│  │  YOLO  │  Moondream  │  OmniParser  │  CLIP/SigLIP2     │   │
-│  │  PaddleOCR  │  ColPali  │  Qwen2.5-VL  │  UI-TARS       │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                │
-│  辅助: pyautogui (GUI 动作) │ playwright │ ffmpeg │ LanceDB    │
-└────────────────────────────────────────────────────────────────┘
+│                            │                                   │
+│                            ▼                                   │
+│   ┌────────────────────────────────────────────────────────┐   │
+│   │            Hybrid Vision Router                        │   │
+│   │   规则路由 → 置信度升级 → 缓存 → 预算控制              │   │
+│   └────┬──────────────────┬──────────────────────┬─────────┘   │
+└────────┼──────────────────┼──────────────────────┼─────────────┘
+         │                  │                      │
+         ▼                  ▼                      ▼
+   ┌──────────┐      ┌─────────────┐      ┌────────────────┐
+   │ Tier 1   │      │ Tier 2      │      │ Tier 3         │
+   │ 本地 VLM │      │ 云端便宜    │      │ 云端 SOTA      │
+   │ MiniCPM-V│      │ Haiku/Flash │      │ Sonnet/Opus    │
+   │ Moondream│      │             │      │ Gemini 2.5 Pro │
+   └────┬─────┘      └─────────────┘      └────────────────┘
+        │                                          ▲
+        ▼                                          │
+   ┌──────────────────────────────────────────────┘
+   │ Python Vision Sidecar (uv workspace)
+   │  ┌─────────────────────────────────────────┐
+   │  │ Processor Pipeline (复用 Vision-Agents) │
+   │  │  YOLO │ MiniCPM-V │ Moondream │         │
+   │  │  OmniParser │ CLIP/SigLIP2 │ PaddleOCR  │
+   │  │  ColPali │ UI-TARS │ pyautogui          │
+   │  └─────────────────────────────────────────┘
+   └─────────────────────────────────────────────
 ```
 
-通信协议草案（JSON-RPC over stdio）：
+通信协议（JSON-RPC over stdio）：
 
 ```jsonc
 // Request
 { "id": "req-1", "method": "vlm.caption",
-  "params": { "image_path": "/tmp/a.png", "model": "moondream2", "prompt": "describe" } }
+  "params": { "image_path": "/tmp/a.png", "model": "minicpm-v-2.6",
+              "prompt": "describe", "max_tokens": 256 } }
 
 // Response
-{ "id": "req-1", "result": { "text": "...", "boxes": [], "latency_ms": 312 } }
+{ "id": "req-1", "result": { "text": "...", "confidence": 0.83,
+                              "boxes": [], "latency_ms": 312 } }
 ```
 
 ---
 
 ## 5. 参考文献与开源项目（按主题）
 
-> 引用规范：每条标注 **年份 / 机构 / 用途**。课程报告里写 BibTeX 时直接拿。
+### 5.1 Hybrid LLM Routing（模块 1.3，新增重点）
 
-### 5.1 GUI Agent / Computer Use（模块 3）
+- **RouteLLM** (Ong et al., 2024, lm-sys) — 学习一个轻量 router，把 query 在 strong/weak 模型间路由。<https://github.com/lm-sys/RouteLLM>
+- **FrugalGPT** (Chen et al., 2023, Stanford) — cost-aware cascading（先便宜后贵，置信度低再升级）。<https://arxiv.org/abs/2305.05176>
+- **Hybrid LLM** (Ding et al., 2024, Microsoft) — 训练 router 在云端/边缘模型间分流。
+- **OpenRouter.ai** — 产品化的多模型路由 + fallback aggregator，工程参考。
+- **MiniCPM-V 2.6** (2024, OpenBMB) — 8B 端侧 VLM，性能接近 GPT-4V，本地 Tier 1 首选。<https://github.com/OpenBMB/MiniCPM-V>
 
-1. **Anthropic Computer Use** (2024, Anthropic) — Claude 直接操作桌面的官方 API，模块 3 远程派直接调它。<https://docs.anthropic.com/en/docs/build-with-claude/computer-use>
-2. **UI-TARS / UI-TARS-1.5** (2025, ByteDance) — 端到端 GUI 基础模型，支持本地推理；模块 3 本地派的首选。<https://github.com/bytedance/UI-TARS>
-3. **OS-Atlas** (2024, Shanghai AI Lab) — 跨平台 GUI grounding 模型，作为 UI-TARS 的备选。
-4. **Agent S2** (2025, Simular AI) — 分层 GUI Agent 架构，对模块 3 的 planner/actor 分离有参考价值。<https://github.com/simular-ai/Agent-S>
-5. **ShowUI** (2025, NUS/Microsoft) — 视觉-语言-action 统一的 GUI agent。
-6. **Aguvis** (2025, HKU/Salesforce) — 统一视觉 agent 训练框架。
-7. **SeeClick** (2024, NJU) — 早期 GUI grounding 工作，理解坐标-文本映射的起点。
-8. **Magma** (2025, Microsoft) — 多模态 agent 基础模型，给"视觉+动作"打底。
-9. **cua / trycua** (开源, 2025) — macOS 上的轻量 computer use 实现，可借鉴沙箱设计。<https://github.com/trycua/cua>
-10. **self-operating-computer** (开源, OthersideAI) — 早期 GPT-4V 桌面 agent demo。
+### 5.2 GUI Agent / Computer Use（模块 3）
 
-### 5.2 视觉大模型 / VLM（模块 1、2、6）
+- **Anthropic Computer Use** (2024, Anthropic) — 模块 3 远程派直接调。<https://docs.anthropic.com/en/docs/build-with-claude/computer-use>
+- **UI-TARS / UI-TARS-1.5** (2025, ByteDance) — 端到端 GUI 基础模型；模块 3 本地派首选。<https://github.com/bytedance/UI-TARS>
+- **OS-Atlas** (2024, Shanghai AI Lab) — 跨平台 GUI grounding。
+- **Agent S2** (2025, Simular AI) — 分层 GUI Agent。<https://github.com/simular-ai/Agent-S>
+- **ShowUI** (2025, NUS/Microsoft) — 视觉-语言-action 统一。
+- **Aguvis** (2025, HKU/Salesforce) — 统一视觉 agent 训练框架。
+- **SeeClick** (2024, NJU) — 早期 GUI grounding。
+- **Magma** (2025, Microsoft) — 多模态 agent 基础模型。
+- **cua / trycua** (2025, 开源) — macOS computer use 实现参考。<https://github.com/trycua/cua>
+- **self-operating-computer** (开源, OthersideAI)
 
-11. **Qwen2.5-VL / Qwen3-VL** (2025, Alibaba) — 开源 SOTA VLM，本地 7B 可跑，作为 `VisionQATool` 的高质量后端。
-12. **Moondream 2 / 3** (2024–2025) — 1.5B / 2B 超轻量 VLM，端侧首选，Vision-Agents 已集成。
-13. **Florence-2** (2024, Microsoft) — 多任务视觉基础模型（caption/detect/seg/ocr 一把梭）。
-14. **SigLIP / SigLIP 2** (2024–2025, Google) — 视觉-文本对比模型，用于模块 6 的嵌入。
-15. **OmniParser v2** (2025, Microsoft) — 屏幕 → 元素树解析，模块 2 `UIParseTool` 直接用。<https://github.com/microsoft/OmniParser>
-16. **ColPali / ColQwen2** (2024–2025, ILLUIN/EPFL) — late-interaction 文档视觉检索，模块 6 PDF/截图 RAG 的基石。
+### 5.3 视觉大模型 / VLM（模块 1/2/6）
 
-### 5.3 Screenshot-Driven Dev / Design2Code（模块 4）
+- **MiniCPM-V 2.6 / MiniCPM-o** (2024–2025, OpenBMB) — 本地 Tier 1 首选。
+- **Qwen2.5-VL / Qwen3-VL** (2025, Alibaba) — 高质量本地 7B+ 选项。
+- **Moondream 2/3** (2024–2025) — 1.5–2B 超轻量，Vision-Agents 已集成。
+- **Florence-2** (2024, Microsoft) — caption/detect/seg/ocr 一把梭。
+- **SigLIP / SigLIP 2** (2024–2025, Google) — 模块 6 嵌入用。
+- **OmniParser v2** (2025, Microsoft) — 屏幕→元素树。<https://github.com/microsoft/OmniParser>
+- **ColPali / ColQwen2** (2024–2025, ILLUIN/EPFL) — 文档视觉检索。
 
-17. **Design2Code: How Far Are We from Automating Front-End Engineering?** (2024, Stanford) — 模块 4 的核心 benchmark。<https://arxiv.org/abs/2403.03163>
-18. **Pix2Code** (2017, FloydHub) — 远古起点，回顾用。
-19. **WebSight v2** (2024, HuggingFace) — Sketch→HTML 数据集，可做训练/评测。
-20. **WebGen-Bench** (2025) — 网页生成评测。
-21. **v0** (Vercel) — 工业界产品形态参考。
-22. **screenshot-to-code** (开源, abi/screenshot-to-code) — 开源最广为人知实现，模块 4 直接借其 prompt 工程。<https://github.com/abi/screenshot-to-code>
+### 5.4 Screenshot-Driven Dev（模块 4）
 
-### 5.4 视觉验证 / Visual Regression（模块 5）
+- **Design2Code** (2024, Stanford) — 核心 benchmark。<https://arxiv.org/abs/2403.03163>
+- **WebSight v2** (2024, HuggingFace) — Sketch→HTML 数据。
+- **WebGen-Bench** (2025) — 网页生成评测。
+- **v0** (Vercel) — 工业产品形态参考。
+- **screenshot-to-code** (开源, abi/screenshot-to-code) — prompt 工程直接借。<https://github.com/abi/screenshot-to-code>
 
-23. **Visual Regression Testing 综述** (业界经验, 非论文) — Percy / Chromatic / Lost-Pixel 工程实践。
-24. **UI-Bench / WebShop / VisualWebArena** (CMU 2024) — 浏览器视觉任务评测，模块 5 评测部分用。<https://jykoh.com/vwa>
-25. **WebArena** (2023, CMU) — 文本版前置工作，对比基线。
+### 5.5 视觉验证 / Web Agent（模块 5）
 
-### 5.5 多模态 SWE Agent（项目总愿景）
+- **VisualWebArena** (2024, CMU) — 浏览器视觉任务评测。<https://jykoh.com/vwa>
+- **WebArena** (2023, CMU) — 文本基线。
+- **Percy / Chromatic / Lost-Pixel** — 工业 visual regression。
 
-26. **SWE-bench Multimodal (M-SWE-bench)** (2024, Princeton) — 给定带截图的 issue，agent 改 repo 修 bug；本项目终极对齐目标。<https://www.swebench.com/multimodal.html>
-27. **SWE-agent** (2024, Princeton) — 文本版 SOTA agent，结构上对照 claude-code Tool/Command 设计。
-28. **OpenHands / OpenDevin** (2024) — 工程实现参考，已有视觉 agent 分支。
-29. **Cline / Roo Code** (开源 VSCode agent) — UX 灵感，但 claude-code 已经更完备。
+### 5.6 多模态 SWE Agent（项目愿景）
 
-### 5.6 实时视频 Agent（模块 7）
+- **SWE-bench Multimodal** (2024, Princeton) — 终极对齐目标。<https://www.swebench.com/multimodal.html>
+- **SWE-agent** (2024, Princeton) — 文本版 SOTA agent。
+- **OpenHands / OpenDevin** (2024) — 已有视觉 agent 分支。
 
-30. **Gemini 2.0/2.5 Live API** (2024–2025, Google) — 实时多模态流。
-31. **OpenAI Realtime API** (2024–2025, OpenAI) — 同上。
-32. **NVIDIA Cosmos** (2025) — 视频世界模型，Vision-Agents 已集成（高阶 demo 可选）。
-33. **Vision-Agents** (2025, GetStream) — **本项目主要被融合对象**。<https://github.com/GetStream/Vision-Agents>
+### 5.7 实时视频 Agent（模块 7）
 
-### 5.7 Prompting / Agent Reasoning
+- **Gemini 2.0/2.5 Live API** (2024–2025, Google)
+- **OpenAI Realtime API** (2024–2025, OpenAI)
+- **NVIDIA Cosmos** (2025) — Vision-Agents 已集成。
+- **Vision-Agents** (2025, GetStream) — **本项目主要被融合对象**。<https://github.com/GetStream/Vision-Agents>
 
-34. **Set-of-Mark Prompting** (2023, Microsoft) — 给图标号让 VLM 引用，模块 2 `AnnotateTool` 的依据。
-35. **ReAct / Reflexion / Tree-of-Thought** — 基础 agent reasoning paradigm。
-36. **Anthropic "Computer use" prompting cookbook** (2024–2025) — 官方 prompt 模板。
+### 5.8 Prompting / Reasoning
 
----
-
-## 6. 开发计划（4 周 + 1 周缓冲）
-
-> 假设每周投入 ~25h，单人完成。所有节点都给"最小可交付"，不达标先砍 stretch，不砍主线。
-
-### Week 0（前期，3 天，可并行已开始）
-
-- [ ] 通读 `src/Tool.ts` / `src/tools/FileReadTool/*` / `src/QueryEngine.ts` 前 2000 行，画 tool-call 时序图。
-- [ ] 通读 `Vision-Agents/agents-core/vision_agents/core/agents/agents.py` 与 `processors/base_processor.py`。
-- [ ] 整理 Reading List（已在 §5 完成），跑通 Moondream / Qwen2.5-VL / OmniParser 各一个 demo。
-- [ ] 决定 sidecar 协议（JSON-RPC over stdio，参考 LSP 实现，避免端口冲突）。
-
-**产出**：`docs/00_arch_review.md`、`docs/01_sidecar_protocol.md`。
-
-### Week 1：基础设施 + 视觉中台（模块 1）
-
-- **Day 1-2**：在 `src/vision/` 落地 `pipeline.ts` + `sidecar.ts`。spawn 子进程、stdio buffer 拼包、超时/重启。
-- **Day 3**：在 `vision_sidecar/` 用 uv 建独立 Python 包，依赖 `vision-agents-core`、`ultralytics`、`moondream`、`pillow`。实现 RPC dispatch（method registry）。
-- **Day 4**：把 `Vision-Agents/plugins/moondream` 的 `MoondreamVLM` 暴露为 `vlm.caption` 方法；接上单测。
-- **Day 5**：把 `Vision-Agents/plugins/ultralytics` 的 `YOLODetector` 暴露为 `detect.objects`，跑通端到端从 TS 调到 YOLO 返 bbox。
-- **Day 6-7**：在 `src/tools/vision/VisionQATool/`、`OCRTool/` 落地两个工具（最小集），接入 permission 系统，写测试。
-
-**Gate**：CLI 里能跑 `claude` → 问 "describe this image: /tmp/test.png" → 走 Moondream 出 caption。
-
-### Week 2：视觉工具家族 + Screenshot-Driven Dev（模块 2、4）
-
-- **Day 1**：`ScreenshotTool`（mac/linux/win 分发到原生命令）+ `AnnotateTool`（sharp 叠 bbox）。
-- **Day 2**：`BrowserVisionTool` 基于 playwright（先 mac，CI 用 chromium-headless）。
-- **Day 3**：`ImageDiffTool`：pixelmatch + sidecar 里加 `embed.clip` → cosine 双指标。
-- **Day 4**：`UIParseTool`：sidecar 集成 OmniParser v2（模型 ~1GB，按需下载 + 缓存）。
-- **Day 5-6**：新 command `/design2code`，串起 prompt 模板 → scaffold → 启 dev server → 截图 → diff → 反思。借鉴 `abi/screenshot-to-code` 的 prompt。
-- **Day 7**：跑通至少 3 个 Design2Code 样例（taillwind 卡片、登录页、dashboard），手工评估。
-
-**Gate**：`/design2code ./figma.png` 能在 5 轮内输出可访问的 React 页面，与原图相似度（CLIP cosine）≥ 0.75。
-
-### Week 3：GUI Agent + 视觉验证闭环（模块 3、5）
-
-- **Day 1**：`/visual-debug` 命令骨架 + 文件 watcher（chokidar）。
-- **Day 2-3**：把视觉回归接到 git hook（pre-push 跑一遍），异常时调用 `VisionQATool` 给出诊断。
-- **Day 4**：GUI Agent 第一版——只调 Anthropic Computer Use API（远程派最快出活）。在 docker + xvfb 沙箱里跑。
-- **Day 5-6**：本地派——sidecar 集成 UI-TARS-1.5（或 ShowUI，看推理速度），实现 `act.click/type/scroll`。
-- **Day 7**：在 mini OSWorld 子集（10 例）上对比远程/本地派成功率。
-
-**Gate**：`/gui "打开 calculator 算 23*17"`、`/visual-debug` 改 CSS 后能正确报"右上角按钮颜色异常"。
-
-### Week 4：视觉 Memory + Live + 评测 + 收尾（模块 6、7 + Eval）
-
-- **Day 1-2**：sidecar 集成 SigLIP2 + LanceDB；`VisionMemorySearchTool` 与 `src/services/extractMemories/` 钩子打通。
-- **Day 3**：（stretch）`/live` 模式：屏幕共享 + Gemini Live，仅做 5 分钟 demo 不做生产化。
-- **Day 4**：自建 mini-eval 数据集（20 题），脚本 `eval/run_visual_coding.py`。
-- **Day 5**：跑 Design2Code 子集（10 题）+ VisualWebArena 子集（10 题），整理结果表。
-- **Day 6**：写课程报告 `REPORT.md`（含架构图、消融、案例）。
-- **Day 7**：录 demo 视频、整理 README、清理代码、补单测覆盖率到 ≥ 60%。
-
-**Gate**：Eval 报告就绪、demo 视频 ≤ 5 分钟覆盖 3 个核心场景。
-
-### Week 5（缓冲）
-
-- 修 bug、补单测、被砍模块复活、报告打磨。
+- **Set-of-Mark Prompting** (2023, Microsoft) — 模块 2 `AnnotateTool` 依据。
+- **Anthropic "Computer use" prompting cookbook** (2024–2025) — 官方 prompt 模板。
 
 ---
 
-## 7. 评测方案
+## 6. 开发计划（AI 自驱 sprint 节奏）
+
+### 6.1 核心理念
+
+**人只做三件事**：
+1. **Sprint 启动**（每周一，5–10 分钟）：阅读上周 demo + 当前 sprint 的 ticket 列表，批准 / 调整。
+2. **Sprint 验收**（每周日，15–20 分钟）：看 AI 产出的 demo 视频 + eval 报告，给 "go / 改 / 砍" 决策。
+3. **资源/凭据**（一次性）：提供 Anthropic + OpenAI/Gemini API key、确认本地能跑 8B VLM（Mac M-series 24GB+ 或单卡 24GB GPU）。
+
+**AI（Cursor agent）做**：所有 coding / debug / test / eval / 文档 / demo 录制脚本 / 报告初稿。每个 sprint 拆成多个独立 ticket，可并发派给多个 Cursor 子 agent。
+
+### 6.2 Sprint 0（前 3 天，AI 自动）
+
+**目标**：把所有"前置基础设施"准备完，让后续 sprint 不卡在环境。
+
+| Ticket | 内容 | 输出 |
+|--------|------|------|
+| S0-1 | 扫 `src/` 精简后剩余代码，画 tool-call 时序图（mermaid） | `docs/00_arch_review.md` |
+| S0-2 | 扫 `Vision-Agents/agents-core/`，整理 Processor + Sidecar 复用清单 | `docs/01_vision_agents_inventory.md` |
+| S0-3 | 定义 stdio JSON-RPC 协议（参考 LSP） | `docs/02_sidecar_protocol.md` |
+| S0-4 | 写新 entry：`src/entry.ts` 极简版（只 wire bash/file/grep 等保留 tools），用 bun 跑通 hello-world tool call | 可启动的 minimal CLI |
+| S0-5 | 拉 MiniCPM-V 2.6 / Moondream 2 / OmniParser v2 模型到本地缓存（脚本化） | `scripts/download_models.sh` |
+| S0-6 | 建 `vision_sidecar/` Python 包，跑通 echo RPC | sidecar skeleton |
+
+**人介入点**：仅在 S0-4 跑不通时帮忙看错误（预计概率 30%）。
+
+### 6.3 Sprint 1（Week 1）— 视觉中台 + 工具家族（一半）
+
+| Ticket | 内容 | Acceptance |
+|--------|------|------------|
+| S1-1 | `src/vision/sidecar.ts`：进程管理 + RPC 客户端 + 超时重启 | 单测覆盖 ≥ 80% |
+| S1-2 | `vision_sidecar/methods/vlm.py`：MiniCPM-V + Moondream 双后端 + 置信度输出 | RPC 跑通 |
+| S1-3 | `vision_sidecar/methods/detect.py`：YOLO（直接 import Vision-Agents 的 ultralytics 插件） | RPC 跑通 |
+| S1-4 | `src/vision/router/`：规则路由 + 置信度升级 + 缓存 + 预算 | 单测 + 合成数据回归 |
+| S1-5 | `VisionQATool` + `OCRTool` + `AnnotateTool`（三个最简单的） | tool call 能从 CLI 跑通 |
+| S1-6 | 写 sprint demo 脚本：`scripts/demo_sprint1.sh`（图片 → caption + OCR + 标注） | 录 30s gif |
+
+**人介入点**：周日看 demo gif，确认"视觉中台 + 路由 + 三个工具"形态对路。
+
+### 6.4 Sprint 2（Week 2）— 工具家族（另一半） + Screenshot-Driven Dev
+
+| Ticket | 内容 | Acceptance |
+|--------|------|------------|
+| S2-1 | `ScreenshotTool`（mac/linux 分发到 native cmd） | 能截全屏/指定窗口 |
+| S2-2 | `BrowserVisionTool`（playwright wrap） | 能起 headless 截网页 + 读 DOM |
+| S2-3 | `ImageDiffTool`（pixelmatch + CLIP） | 双指标 |
+| S2-4 | `UIParseTool`（OmniParser v2 sidecar） | 输出元素树 + bbox |
+| S2-5 | `/design2code` command：prompt 模板 + scaffold + dev server + diff loop | 至少 3 例样张能跑出可访问页面 |
+| S2-6 | Sprint demo：录 `/design2code ./samples/login.png` 完整链路 | 录 1min mp4 |
+
+**人介入点**：周日看 demo，判断"截图驱动开发"质量是否值得继续做模块 5（如果不行就砍/合并模块 5）。
+
+### 6.5 Sprint 3（Week 3）— GUI Agent + 视觉验证闭环
+
+| Ticket | 内容 | Acceptance |
+|--------|------|------------|
+| S3-1 | `/visual-debug` command + chokidar watcher | 文件保存触发自动截图 + diff |
+| S3-2 | GUI Agent 远程派：Anthropic Computer Use API 集成 | OSWorld 10 例子集跑通 |
+| S3-3 | GUI Agent sandbox：docker + Xvfb 脚本 | 隔离运行 |
+| S3-4 | GUI Agent 本地派：UI-TARS-1.5 sidecar（**stretch**，时间不够就砍） | 同样 OSWorld 10 例 |
+| S3-5 | Sprint demo：`/gui "打开 calculator 算 23×17"` + `/visual-debug` 演示 | 录 1min mp4 |
+
+**人介入点**：周日看 demo。如果 S3-4 没做完不阻塞。
+
+### 6.6 Sprint 4（Week 4）— 视觉 Memory + Eval + 收尾
+
+| Ticket | 内容 | Acceptance |
+|--------|------|------------|
+| S4-1 | SigLIP2 + LanceDB 嵌入存储 | 索引 ≥ 100 张图能 <100ms 检索 |
+| S4-2 | `VisionMemorySearchTool` + 自动入库 hook | tool 跑通 |
+| S4-3 | 自建 mini-eval 20 例（含 5 例真实 GitHub issue 截图） | `eval/visual_coding/` |
+| S4-4 | 跑 Design2Code 子集 10 例 + VisualWebArena 子集 10 例 | `eval/results/*.jsonl` |
+| S4-5 | Routing ablation：关 router / 全走 Tier 1 / 全走 Tier 3 三个对照 | `eval/ablation_router.md` |
+| S4-6 | 报告 `REPORT.md` 初稿（架构图、消融、案例） | ≥ 8 页 |
+| S4-7 | 录 5 分钟 demo 视频（脚本 + 录屏 + 字幕） | mp4 |
+
+**人介入点**：周末整理报告署名/课程模板适配（预计 1–2h）。
+
+### 6.7 缓冲（Week 5，可选）
+
+- 修 bug、补单测覆盖率 ≥ 60%、模块 7 Live 模式（如果还有精力）。
+- 否则用于让 AI 重写报告 / 改 PPT。
+
+---
+
+## 7. 人 vs AI 工作分配（总览）
+
+| 项 | 人 | AI（Cursor agent） |
+|----|----|---------------------|
+| 拍板方向 | ✅ | — |
+| API key、GPU 资源 | ✅（一次性） | — |
+| 看每周 demo + 决策 | ✅（15min/周） | — |
+| 调研论文 / 写 reading list | — | ✅ |
+| 写代码 | — | ✅ |
+| 写单元测试 | — | ✅ |
+| 跑 eval | — | ✅ |
+| 写文档 / 报告初稿 | — | ✅ |
+| 录 demo 视频脚本 / 录屏 | — | ✅（脚本生成 + 自动录屏） |
+| 报告署名 / 适配课程模板 | ✅（1–2h） | — |
+| 解决环境 / API 配额问题 | ✅（仅 AI 卡住时） | — |
+
+**人总投入预估**：4–5 周 × ~1h/周 = **5–6h**。
+
+---
+
+## 8. 评测方案
 
 | 类别 | 数据集 | 规模 | 指标 |
 |------|--------|------|------|
-| Screenshot→Code | Design2Code 子集 | 10 | CLIP-similarity, MAE 颜色, 人工 1–5 分 |
+| Screenshot→Code | Design2Code 子集 | 10 | CLIP-similarity / 颜色 MAE / 人工 1–5 分 |
 | Visual Web Task | VisualWebArena 子集 | 10 | task success rate |
-| GUI Operation | OSWorld 子集（仅 macOS apps） | 10 | step-level + task-level success |
-| 自建 Visual-Coding | 自构 20 例（含 5 个真实 GitHub issue 截图） | 20 | task success + 平均轮数 + 平均成本 |
-| 消融 | 关掉本地 VLM / 关掉 ImageDiff / 关掉 reflection | — | 同上 |
+| GUI Operation | OSWorld 子集（macOS apps） | 10 | step-level + task-level success |
+| 自建 Visual-Coding | 自构 20 例（含 5 个真实 GitHub issue 截图） | 20 | success + 平均轮数 + 平均成本 |
+| **Routing 消融** | 全 Tier1 / 全 Tier3 / 路由 | — | 任务成功率 vs 成本散点 |
+| **模块消融** | 关 ImageDiff / 关 reflection / 关 router | — | 同上 |
 
-所有评测脚本进 `eval/`，结果固化到 `eval/results/*.jsonl` 便于复现。
+所有评测脚本进 `eval/`，结果固化到 `eval/results/*.jsonl`。
 
 ---
 
-## 8. 风险与缓解
+## 9. 风险与缓解
 
 | 风险 | 概率 | 影响 | 缓解 |
 |------|------|------|------|
-| TS↔Python sidecar 协议踩坑（编码、信号、僵尸进程） | 高 | 中 | Week 0 就把协议固化，先写 echo 测试；参考 LSP 实现。 |
-| OmniParser / UI-TARS 模型体积大、下载慢 | 中 | 中 | 默认走 Moondream，重型模型按需下载 + 本地缓存。 |
-| Anthropic Computer Use API 费用/配额 | 中 | 中 | 默认本地派；远程派加 budget 限制（复用 `cost-tracker.ts`）。 |
-| Playwright/headless Chromium 在 macOS arm64 不稳 | 中 | 低 | 已知方案：Playwright 1.45+ 原生支持；CI 用 ubuntu runner。 |
-| GUI 操作真实点击造成误操作 | 高 | 高 | 默认 dry-run；`--yolo` 才执行；docker + xvfb 提供安全 sandbox 脚本。 |
-| 课程时间 4 周不够 | 中 | 高 | 模块 7（Live） 标记为 stretch，可砍；模块 3 本地派如果不稳就只留远程派。 |
-| 与现有 `claude-in-chrome` 重复 | 中 | 低 | 定位互补：chrome skill 是浏览器内 DOM 操作；本项目模块 2/3 是屏幕级 + 本地 VLM。文档明确区分。 |
+| TS↔Python sidecar 协议踩坑（编码、信号、僵尸进程） | 高 | 中 | S0-3/S0-6 就把协议固化，先写 echo 测试，参考 LSP 实现 |
+| MiniCPM-V / UI-TARS / OmniParser 模型体积大、下载慢 | 中 | 中 | `scripts/download_models.sh` 后台下；默认 Moondream 兜底 |
+| Anthropic Computer Use API 费用 | 中 | 中 | Router 预算控制；本地派作为 fallback |
+| Playwright headless 在 macOS arm64 不稳 | 中 | 低 | Playwright 1.45+ 原生支持；CI 走 ubuntu runner |
+| GUI 操作真实点击造成误操作 | 高 | 高 | 默认 dry-run；`--yolo` 才执行；docker+xvfb sandbox |
+| 模块 7 (Live) realtime API 调通耗时 | 高 | 低 | 标 stretch，直接砍也不影响主线 |
+| AI 子 agent 跑偏（如改坏不该改的目录） | 中 | 中 | 每个 sprint 严格 ticket 化，PR 形式合入；人周日 review diff |
 
 ---
 
-## 9. 目录结构（最终态）
+## 10. 目录结构（最终态）
 
 ```
 claude-code-vision/
-├── src/                              # claude-code 原始源码（不动 + 渐进式补丁）
+├── src/                              # 已精简的 claude-code 源码
 │   ├── tools/
+│   │   ├── ... (26 个保留的 tool)
 │   │   └── vision/                   # 新增视觉 Tool 家族
 │   │       ├── ScreenshotTool/
 │   │       ├── BrowserVisionTool/
@@ -359,30 +445,36 @@ claude-code-vision/
 │   │       ├── AnnotateTool/
 │   │       └── VisionMemorySearchTool/
 │   ├── commands/
-│   │   ├── design2code/              # 新 slash 命令
+│   │   ├── ... (24 个保留的 command)
+│   │   ├── design2code/              # 新 slash
 │   │   ├── visual-debug/
 │   │   ├── gui/
 │   │   └── live/
 │   ├── vision/                       # 视觉中台
 │   │   ├── pipeline.ts
 │   │   ├── sidecar.ts
+│   │   ├── router/
+│   │   │   ├── router.ts
+│   │   │   ├── strategies.ts
+│   │   │   ├── budgets.ts
+│   │   │   └── cache.ts
 │   │   └── types.ts
-│   └── coordinator/
-│       └── gui_agent.ts              # GUI Agent 子 agent
-├── vision_sidecar/                   # Python sidecar（uv workspace 复用 Vision-Agents）
+│   ├── coordinator/
+│   │   └── gui_agent.ts
+│   └── entry.ts                      # 新 minimal entrypoint（替代 main.tsx）
+├── vision_sidecar/                   # Python sidecar
 │   ├── pyproject.toml
-│   ├── vision_sidecar/
-│   │   ├── server.py                 # stdio JSON-RPC
-│   │   ├── methods/
-│   │   │   ├── vlm.py                # Moondream / Qwen2.5-VL
-│   │   │   ├── detect.py             # YOLO via Vision-Agents/ultralytics
-│   │   │   ├── ui_parse.py           # OmniParser
-│   │   │   ├── ocr.py
-│   │   │   ├── embed.py              # SigLIP2 / CLIP
-│   │   │   └── act.py                # pyautogui + UI-TARS
-│   │   └── registry.py
-│   └── tests/
-├── Vision-Agents/                    # 原始 vendored repo（保持只读，import 其 plugin）
+│   └── vision_sidecar/
+│       ├── server.py                 # stdio JSON-RPC
+│       ├── registry.py
+│       └── methods/
+│           ├── vlm.py                # MiniCPM-V / Moondream / Qwen-VL
+│           ├── detect.py             # YOLO via Vision-Agents
+│           ├── ui_parse.py           # OmniParser
+│           ├── ocr.py
+│           ├── embed.py              # SigLIP2 / CLIP / ColPali
+│           └── act.py                # pyautogui + UI-TARS
+├── Vision-Agents/                    # vendored repo（只读，import 其 plugin）
 ├── eval/
 │   ├── design2code/
 │   ├── visualwebarena/
@@ -391,36 +483,50 @@ claude-code-vision/
 │   └── run.py
 ├── docs/
 │   ├── 00_arch_review.md
-│   ├── 01_sidecar_protocol.md
-│   ├── 02_tool_specs.md
-│   └── 03_gui_agent_design.md
+│   ├── 01_vision_agents_inventory.md
+│   ├── 02_sidecar_protocol.md
+│   └── 03_routing_design.md
 ├── scripts/
 │   ├── gui_sandbox.sh
-│   └── download_models.sh
+│   ├── download_models.sh
+│   └── demo_sprint*.sh
 ├── PLAN.md                           # 本文档
-├── REPORT.md                         # 课程报告（Week 4 产出）
+├── REPORT.md                         # 课程报告
 └── README.md
 ```
 
 ---
 
-## 10. 与课程"完整度"评分对齐
+## 11. 已删除的 src/ 内容（v2 实际执行）
 
-| 评分维度 | 本项目落点 |
-|----------|------------|
-| 工程完整度 | 7 大模块 + sidecar + 沙箱 + eval + CI |
-| 文献融入 | §5 共 36 条引用，覆盖 25–26 年代表作 |
-| 开源融入 | 复用 Vision-Agents、OmniParser、Moondream、UI-TARS、screenshot-to-code、playwright 等 |
-| 创新性（不强求） | 把"视觉 processor 中台 + GUI Agent + 视觉验证闭环"塞进同一个 CLI 是当前没人正面做的 combo |
-| 可复现 | eval 脚本 + LanceDB 本地存 + 模型按需下载脚本 |
-| 演示效果 | 3 个 demo + 5 分钟视频 |
+为减少噪音、明确范围，本次实际删掉的内容（git baseline `ad8fc1c` 之后）：
+
+**整目录删除**：
+- `src/buddy/`（彩蛋）
+- `src/bridge/`（IDE 桥接，与 CLI 项目无关）
+- `src/remote/`（远程会话）
+- `src/server/`（server 模式）
+- `src/upstreamproxy/`（企业代理）
+- `src/migrations/`（老版本迁移）
+- `src/vim/`、`src/voice/`、`src/keybindings/`、`src/native-ts/`、`src/moreright/`、`src/outputStyles/`
+
+**services 子目录删除**：`oauth` / `settingsSync` / `teamMemorySync` / `policyLimits` / `remoteManagedSettings` / `PromptSuggestion` / `AgentSummary` / `MagicDocs` / `SessionMemory` / `autoDream` / `tips` / `extractMemories` / `analytics` / `toolUseSummary`，以及 `notifier.ts` / `claudeAiLimits*.ts` / `mockRateLimits.ts` / `rateLimit*.ts` / `diagnosticTracking.ts` / `preventSleep.ts` / `awaySummary.ts` / `internalLogging.ts` / `mcpServerApproval.tsx` / `voice*.ts` / `vcr.ts`。
+
+**commands 删除**（保留下面 24 个之外的全部）：
+保留：`agents / clear / compact / config / context / ctx_viz / diff / doctor / env / exit / files / help / hooks / init.ts / mcp / memory / model / permissions / plan / plugin / resume / review / session / skills / status / tasks / version.ts`。
+删除涵盖：商业化（install / login / logout / share / upgrade / oauth-refresh / privacy-settings / stickers / mobile / desktop / teleport / feedback / release-notes / install-github-app / install-slack-app）、配额（cost / usage / stats / rate-limit-options / extra-usage / reset-limits / mock-limits）、IDE bridge（bridge / bridge-kick / ide）、远程（remote-env / remote-setup）、调试（heapdump / perf-issue / break-cache / debug-tool-call / sandbox-toggle / backfill-sessions / reload-plugins）、proactive（rewind / thinkback / thinkback-play / btw / effort / fast / good-claude / ant-trace / advisor / insights / brief）、PR（security-review / review.ts / commit / commit-push-pr / pr_comments / autofix-pr / passes / bughunter / issue / tag / branch / summary）、vim / voice / chrome / color / theme / statusline / terminalSetup / onboarding / init-verifiers / output-style / copy / export / rename / add-dir / ultraplan / createMovedToPluginCommand。
+
+**tools 删除**：`SleepTool / RemoteTriggerTool / ScheduleCronTool / SyntheticOutputTool / TeamCreateTool / TeamDeleteTool / SendMessageTool / PowerShellTool / REPLTool / BriefTool / ConfigTool`。
+
+**规模变化**：`src/` 60M+ → **29M**；TS/TSX 文件 ~1900 → **1573**。
+
+> 注意：`main.tsx` 仍引用部分已删除模块，会有 import 红线。我们不会复用 `main.tsx`，会在 Sprint 0 写新的 `src/entry.ts` 作为入口；红线无影响。
 
 ---
 
-## 11. 立刻可以开干的下一步（给我自己的 TODO）
+## 12. 立即可以开干（极简）
 
-1. 跑 `Vision-Agents` 自带 `examples/02_golf_coach_example`，确保本地 uv 环境 + ultralytics + moondream 跑得起来。
-2. 跑 `src/` 的 dev 启动（先看 `package.json` / bun 入口），确认能把一个新 Tool 注册进 tool registry。
-3. 写 `docs/01_sidecar_protocol.md` 把协议定死，再开 coding。
+只需要做一件事：**`/agent` 让 Cursor agent 开干 Sprint 0**。Sprint 0 的所有 ticket 都不需要人介入，跑完后你周日来看输出即可。
 
-> 三件事都不超过半天，先开 §11 再开 §6 的 Week 1。
+提示词模板：
+> "按 `PLAN.md` §6.2 跑 Sprint 0 的 S0-1 到 S0-6，每个 ticket 完成后在该 ticket 旁打勾，最后产出一个 sprint-0 总结。"
