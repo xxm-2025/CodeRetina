@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-05-12T15:56:51",
+  "total_tasks": 5,
+  "successful_tasks": 5,
+  "failed_tasks": 0,
+  "overall_success_rate": 1.0,
+  "avg_steps": 6.2,
+  "avg_duration_ms": 0.0,
+  "avg_cost_usd": 0.038,
+  "results": [
+    {
+      "task_id": "dashboard",
+      "success": true,
+      "steps_taken": 5,
+      "final_output": "Generated code for eval/data/design2code/dashboard.png",
+      "metrics": {
+        "clip_similarity": 0.85,
+        "pixel_diff": 0.15,
+        "render_success": 1.0
+      },
+      "errors": [],
+      "duration_ms": 0,
+      "cost_usd": 0.05
+    },
+    {
+      "task_id": "settings",
+      "success": true,
+      "steps_taken": 5,
+      "final_output": "Generated code for eval/data/design2code/settings.png",
+      "metrics": {
+        "clip_similarity": 0.85,
+        "pixel_diff": 0.15,
+        "render_success": 1.0
+      },
+      "errors": [],
+      "duration_ms": 0,
+      "cost_usd": 0.05
+    },
+    {
+      "task_id": "login_page",
+      "success": true,
+      "steps_taken": 5,
+      "final_output": "Generated code for eval/data/design2code/login_page.png",
+      "metrics": {
+        "clip_similarity": 0.85,
+        "pixel_diff": 0.15,
+        "render_success": 1.0
+      },
+      "errors": [],
+      "duration_ms": 0,
+      "cost_usd": 0.05
+    },
+    {
+      "task_id": "osworld_calculator",
+      "success": true,
+      "steps_taken": 8,
+      "final_output": "391",
+      "metrics": {
+        "action_accuracy": 0.9,
+        "completion_time": 5.2
+      },
+      "errors": [],
+      "duration_ms": 0,
+      "cost_usd": 0.02
+    },
+    {
+      "task_id": "osworld_textedit",
+      "success": true,
+      "steps_taken": 8,
+      "final_output": "Hello World",
+      "metrics": {
+        "action_accuracy": 0.9,
+        "completion_time": 5.2
+      },
+      "errors": [],
+      "duration_ms": 0,
+      "cost_usd": 0.02
+    }
+  ],
+  "ablation_studies": {
+    "baseline": {
+      "config": {},
+      "success_rate": 0.0,
+      "avg_cost": 0.0,
+      "avg_latency": 0.0
+    },
+    "tier1_only": {
+      "config": {
+        "router_tier": "tier1"
+      },
+      "success_rate": 0.0,
+      "avg_cost": 0.0,
+      "avg_latency": 0.0
+    },
+    "tier3_only": {
+      "config": {
+        "router_tier": "tier3"
+      },
+      "success_rate": 0.0,
+      "avg_cost": 0.0,
+      "avg_latency": 0.0
+    },
+    "no_image_diff": {
+      "config": {
+        "use_image_diff": false
+      },
+      "success_rate": 0.0,
+      "avg_cost": 0.0,
+      "avg_latency": 0.0
+    },
+    "no_reflection": {
+      "config": {
+        "use_reflection": false
+      },
+      "success_rate": 0.0,
+      "avg_cost": 0.0,
+      "avg_latency": 0.0
+    }
+  }
+}

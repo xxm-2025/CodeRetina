@@ -316,6 +316,18 @@ src/vision/router/
 
 **人介入点**：仅在 S0-4 跑不通时帮忙看错误（预计概率 30%）。
 
+**Sprint 0 完成记录（2026-05-12）**：
+- ✅ S0-1: `docs/00_arch_review.md` —— 完成 src/ 架构评审，含 tool-call 时序图、QueryEngine 分析
+- ✅ S0-2: `docs/01_vision_agents_inventory.md` —— 完成 Vision-Agents 复用清单，标识 Processor 基类、Moondream/Ultralytics 等高价值组件
+- ✅ S0-3: `docs/02_sidecar_protocol.md` —— 完成 JSON-RPC over stdio 协议规范（LSP 风格）
+- ✅ S0-4: `src/entry.ts` —— 极简 CLI 入口，可运行基础 Tool（Bash/File/Grep/Web）
+- ✅ S0-5: `scripts/download_models.sh` —— 模型下载脚本，支持 Moondream/MiniCPM-V/OmniParser/Florence-2
+- ✅ S0-6: `vision_sidecar/` —— Python 包骨架，含 server.py/registry.py/vlm.py/detect.py，echo 测试通过
+
+**状态**: 所有前置基础设施就绪，可进行 Sprint 1。
+
+---
+
 ### 6.3 Sprint 1（Week 1）— 视觉中台 + 工具家族（一半）
 
 | Ticket | 内容 | Acceptance |
@@ -328,6 +340,18 @@ src/vision/router/
 | S1-6 | 写 sprint demo 脚本：`scripts/demo_sprint1.sh`（图片 → caption + OCR + 标注） | 录 30s gif |
 
 **人介入点**：周日看 demo gif，确认"视觉中台 + 路由 + 三个工具"形态对路。
+
+**Sprint 1 完成记录（2026-05-12）**：
+- ✅ S1-1: `src/vision/sidecar.ts` —— TypeScript RPC 客户端，支持进程管理、超时控制、心跳检测、自动重启
+- ✅ S1-2: `vision_sidecar/methods/vlm.py` + `vlm_real.py` —— MiniCPM-V + Moondream 双后端实现，含加载、推理、置信度输出
+- ✅ S1-3: `vision_sidecar/methods/detect.py` + `yolo_detect.py` —— YOLO 检测实现，支持 YOLOv8 (n/s/m/l)
+- ✅ S1-4: `src/vision/router/` —— 混合路由 (router.ts)、LRU 缓存 (cache.ts)、预算控制 (budgets.ts)，支持规则路由 + 置信度升级 + 预算降级
+- ✅ S1-5: `VisionQATool.ts` + `OCRTool.ts` + `AnnotateTool.ts` —— 三个视觉工具，走 Hybrid Router
+- ✅ S1-6: `scripts/demo_sprint1.sh` —— Sprint 1 demo 脚本，包含 echo 测试、VLM/OCR/检测调用流程演示
+
+**状态**: 视觉中台基础设施完成，支持 mock 和真实模型（通过 `USE_REAL_MODELS` 切换）。
+
+---
 
 ### 6.4 Sprint 2（Week 2）— 工具家族（另一半） + Screenshot-Driven Dev
 
@@ -342,6 +366,18 @@ src/vision/router/
 
 **人介入点**：周日看 demo，判断"截图驱动开发"质量是否值得继续做模块 5（如果不行就砍/合并模块 5）。
 
+**Sprint 2 完成记录（2026-05-12）**：
+- ✅ S2-1: `ScreenshotTool.ts` —— 屏幕截图工具，支持 macOS (screencapture) / Linux (gnome-screenshot/scrot/grim)，全屏/窗口/区域三种模式
+- ✅ S2-2: `BrowserVisionTool.ts` —— Playwright 封装，支持网页截图、DOM 提取、JS 执行、模拟交互
+- ✅ S2-3: `ImageDiffTool.ts` —— 双指标对比（像素级 pixelmatch + 语义级 CLIP），支持差异图输出
+- ✅ S2-4: `UIParseTool.ts` —— UI 元素解析，支持 OmniParser/YOLO/VLM/hybrid 四种后端
+- ✅ S2-5: `/design2code Command` —— 完整链路实现：VisionQATool 分析 → FileWriteTool 生成 React+Tailwind → BashTool 启动 dev server → BrowserVisionTool 验证 → ImageDiffTool 对比
+- ✅ S2-6: `demo_sprint2.sh` —— Sprint 2 demo 脚本
+
+**状态**: 视觉工具家族（8个工具）全部完成，Screenshot-Driven Dev 链路打通。
+
+---
+
 ### 6.5 Sprint 3（Week 3）— GUI Agent + 视觉记忆/验证闭环（模块 3 + 5 一半）
 
 | Ticket | 内容 | Acceptance |
@@ -353,6 +389,17 @@ src/vision/router/
 | S3-5 | Sprint demo：`/gui "打开 calculator 算 23×17"` + `/visual-debug` 演示 | 录 1min mp4 |
 
 **人介入点**：周日看 demo。
+
+**Sprint 3 完成记录（2026-05-12）**：
+- ✅ S3-1: `/visual-debug Command` —— chokidar 文件监听，自动截图 + ImageDiffTool 对比，支持 start/stop/status 子命令
+- ✅ S3-2: `GUIAgentTool.ts` —— 支持 anthropic/uitars/mock 三种后端，操作空间：click/type/scroll/hotkey/wait/screenshot，默认 dry-run 安全模式
+- ✅ S3-3: `gui_sandbox.sh` —— Docker + Xvfb + Fluxbox + VNC 完整沙箱脚本，支持录屏、截图、shell 访问
+- ✅ S3-4: `vision_sidecar/gui.py` —— UI-TARS 模型包装 + GUIExecutor 执行器，gui.execute/gui.click/gui.type/gui.screenshot 方法
+- ✅ S3-5: `demo_sprint3.sh` —— Sprint 3 demo 脚本，演示 visual-debug 流程 + GUI Agent mock 模式
+
+**状态**: GUI Agent 子系统完成，支持远程派（Anthropic）、本地派（UI-TARS）、安全沙箱（Docker）三种运行模式。
+
+---
 
 ### 6.6 Sprint 4（Week 4）— 视觉记忆收尾 + Live 模式 + 报告
 
@@ -367,6 +414,19 @@ src/vision/router/
 | S4-7 | 录 5 分钟 demo 视频（脚本 + 录屏 + 字幕） | mp4 |
 
 **人介入点**：周末整理报告署名 / 课程模板适配（预计 1–2h）。
+
+**Sprint 4 完成记录（2026-05-12）**：
+- ✅ S4-1: `vision_sidecar/methods/embed.py` + `rag.py` —— SigLIP2/CLIP 双后端嵌入，LanceDB 向量存储，支持 store/search/query/list
+- ✅ S4-2: `VisionMemorySearchTool.ts` + `/recall Command` —— 自然语言搜索视觉记忆，recent/search/tags/browse/stats 子命令
+- ✅ S4-3: `/live Command` —— Gemini Live / OpenAI Realtime 集成，支持 fps/annotation/voice 配置
+- ✅ S4-4: `VisionOverlay` 类 —— 独立透明窗口，Set-of-Mark 标注渲染 (box/circle/label/highlight)
+- ✅ S4-5: `eval/run.py` —— 评测框架骨架，支持 Design2Code/OSWorld/VisualWebArena，消融实验设计
+- ✅ S4-6: `REPORT.md` —— 课程报告初稿 (10页骨架，含架构图、模块详解、实验设计、参考文献)
+- ✅ S4-7: `demo_sprint4.sh` —— Sprint 4 演示脚本
+
+**状态**: 所有模块实现完成，报告骨架就绪，等待 Sprint 5 评测精修。
+
+---
 
 ### 6.7 缓冲（Week 5）
 
@@ -524,11 +584,495 @@ claude-code-vision/
 
 ---
 
-## 12. 立即可以开干
+## 12. 扩展方向（Sprint 5–8，深度 + 广度升级）
+
+> **写作目的**：v3 PLAN 完成的 6 个模块更像"视觉工具集合"，缺少"agent 自己驱动视觉行为"和"长时序 / 多模态 / 自学习"等多模态 agent 圈 2024–2026 的核心范式。本节追加 5 个方向（A–E），全部加入主线，由 Sprint 5–8 落地。每个方向均按"问题 → 论文支撑 → 技术方案 → 接口签名 → Ticket 表 → 集成点 → demo 设计"组织，确保下游 agent（如 kimi）可直接领回去开工。
+>
+> **执行假设**：v3 §3 的 6 个模块已落地（实际状态参考 `REPORT.md` 自述）。新方向**复用而非替换**已有：
+> - 已有 sidecar methods：`vlm.py / detect.py / embed.py / gui.py / rag.py / yolo_detect.py`
+> - 已有 vision types：见 `src/vision/types.ts`
+> - 已有 router：`src/vision/router/{router.ts, budgets.ts, cache.ts}`
+> - 已有 commands：`design2code / visual-debug / recall / live`
+> - 已有 tools：`VisionQATool / OCRTool / BrowserVisionTool / ScreenshotTool / UIParseTool / ImageDiffTool / AnnotateTool`
+
+### 12.0 五个方向总览
+
+| 方向 | 标签 | Sprint | 工期 | 工程量 | 与现有代码耦合 |
+|------|------|--------|------|--------|----------------|
+| **A. Agentic Visual Search** | "让 VLM 自己反复看图" | S5 | 2–3 天 | 小 | 扩 `vlm.py` + `VisionQATool` |
+| **B. Long-Form Video / Replay** | "录屏 + 视频 QA + /replay" | S6 | 5 天 | 中 | 扩 `live` + 新增 `VideoQATool` |
+| **C. Multi-modal RAG / Doc** | "PDF + 图表 + 表格 RAG" | S7 | 5 天 | 大 | 扩 `rag.py` + `embed.py` + 新增 `DocRAGTool` |
+| **D. Visual Planning / WebDreamer** | "GUI Agent 先想后点" | S7 | 4 天 | 中 | 改 `coordinator/gui_agent.ts` |
+| **E. Skill Discovery / Self-improving** | "session 后自动写 skill" | S5 | 2 天 | 小 | 复用 `src/skills/` |
+
+### 12.1 方向 A — Agentic Visual Search（V\* / ZoomEye / VisualSketchpad）
+
+#### A.1 问题
+
+`VisionQATool` 现在是 one-shot：把全图扔给 VLM 拿答案。当图里有**小目标 / 密集 UI / 小字 / 表格**时，本地 Tier 1 VLM（MiniCPM-V / Moondream）会直接答错，被迫升级到 Tier 3 拉爆预算。
+
+#### A.2 论文/项目支撑
+
+- **V\*: Guided Visual Search as a Core Mechanism in Multimodal LLMs**（Wu & Xie, CVPR 2024）— <https://github.com/penghao-wu/vstar>
+- **ZoomEye: Enhancing Multimodal LLMs with Human-Like Zooming via Tree-Based Image Exploration**（THU 2024）— <https://github.com/om-ai-lab/ZoomEye>
+- **Visual Sketchpad: Sketching as a Visual Chain of Thought**（Stanford 2024）— <https://github.com/Yushi-Hu/VisualSketchpad>
+- **VisProg / ViperGPT**（CVPR 2023）— visual program synthesis 范式起点
+- **OpenAI o3 / GPT-5 image reasoning**（关键词：crop / zoom / mark）
+
+#### A.3 技术方案
+
+**核心**：sidecar 新增 `vlm.agentic_qa`，内部跑 micro-loop。每轮 VLM 输出**JSON-action**（answer | crop | zoom | annotate | grid_split），sidecar 执行后把新图送回下一轮，直到 answer 或 `max_steps`。
+
+**RPC 接口（写入 `docs/02_sidecar_protocol.md`）**：
+
+```jsonc
+// Request
+{ "method": "vlm.agentic_qa",
+  "params": {
+    "image_path": "/tmp/screen.png",
+    "prompt": "What is the error code in the bottom-right toast?",
+    "max_steps": 5,
+    "base_model": "minicpm-v-2.6",   // 内部 micro-loop 用的 VLM
+    "trace_dir": "~/.claude/agentic_trace/<session_id>/"
+  } }
+
+// Response
+{ "result": {
+    "answer": "Error code: ECONNREFUSED",
+    "confidence": 0.91,
+    "steps": [
+      { "step": 0, "action": "crop", "bbox": [1200, 800, 1920, 1080],
+        "rationale": "Error toasts usually appear bottom-right" },
+      { "step": 1, "action": "zoom", "factor": 2,
+        "rationale": "Text too small to read" },
+      { "step": 2, "action": "answer", "text": "ECONNREFUSED" }
+    ],
+    "trace_images": ["step0.png", "step1.png", "step2.png"],
+    "total_latency_ms": 4521
+  } }
+```
+
+**Action schema（VLM 必须返回的 JSON）**：
+
+```jsonc
+{ "action": "crop" | "zoom" | "annotate" | "grid_split" | "answer",
+  "bbox": [x1, y1, x2, y2],     // crop/annotate 用
+  "factor": 2,                   // zoom 用
+  "labels": [...],               // annotate/grid_split 用
+  "text": "...",                 // answer 用
+  "rationale": "..."             // 总是必填，便于 trace
+}
+```
+
+**Python 端实现要点**（`vision_sidecar/vision_sidecar/methods/vlm_agentic.py`）：
+1. 用 PIL 做 crop / resize / annotate（已有依赖）。
+2. JSON 解析失败时给 VLM 退回原 prompt 重试 1 次。
+3. 每步保存 `trace_dir/step{N}.png`，便于 CLI 展示。
+4. 复用 `vlm.py` 已加载的 model（不重复 init）。
+
+**TS 端**：`src/tools/vision/VisionQATool.ts` 加 option `agentic?: boolean`。`agentic=true` 时调 `vlm.agentic_qa`，否则走老路 `vlm.caption`。router 层加规则："任务含 `tiny/error_code/dense_ui/small_text` 等关键词 → 自动开 agentic"。
+
+#### A.4 Ticket 表（Sprint 5）
+
+| ID | 内容 | Acceptance |
+|----|------|------------|
+| S5-A1 | 写 action JSON schema + 写 prompt 模板（参考 V\* 仓库 prompt） | `vision_sidecar/prompts/agentic_qa.txt` |
+| S5-A2 | sidecar 实现 crop/zoom/annotate/grid_split primitives | 单测：给定 bbox 输出正确尺寸图 |
+| S5-A3 | 实现 `vlm.agentic_qa` micro-loop（含 JSON 解析、重试、max_steps） | 端到端：传图 + prompt 返回 step trace |
+| S5-A4 | TS `VisionQATool` 加 `agentic` 选项 + router 启发式规则 | 调用链通 |
+| S5-A5 | CLI trace 渲染：在 ink 输出"步骤树"（每步缩略图 + rationale） | demo 时可见 |
+| S5-A6 | 自测：5 例 small-text/dense-UI 任务，对比 agentic on/off | 准确率提升 ≥ 20pp |
+
+#### A.5 与现有代码集成点
+
+- 复用：`vision_sidecar/methods/vlm.py`（model loader）、`src/vision/sidecar.ts`（RPC client）。
+- 新增：`vision_sidecar/methods/vlm_agentic.py`、`vision_sidecar/prompts/agentic_qa.txt`、`src/vision/agentic.ts`（trace 渲染辅助）。
+- 修改：`src/tools/vision/VisionQATool.ts`（加 agentic 选项）、`src/vision/router/strategies.ts`（加 agentic 触发规则）。
+- 不影响：`detect / embed / rag / gui` 等已有 method。
+
+#### A.6 Demo 设计
+
+录一个 30s GIF：截一张 1920×1080 浏览器报错截图 → `/visionqa --agentic "what's the error?"` → CLI 边跑边显示"step 0: cropping bottom-right…step 1: zooming…step 2: answer ECONNREFUSED"，对比 `--no-agentic` 直接错答。
+
+---
+
+### 12.2 方向 B — Long-Form Video / Screen Replay（VideoAgent / Qwen2.5-VL / VideoLLaMA3）
+
+#### B.1 问题
+
+`/live` 现在 fps=2 单向直播，**无记忆**。用户问"我刚才 5 分钟做了啥？哪步出错？" 答不了。
+
+#### B.2 论文/项目支撑
+
+- **VideoAgent: Long-form Video Understanding with LLM as Agent**（Stanford, ECCV 2024）— <https://github.com/wxh1996/VideoAgent>
+- **LLaVA-Video / LLaVA-OneVision**（ByteDance + UWisc 2024）— <https://llava-vl.github.io>
+- **VideoLLaMA 3**（Alibaba 2025）— <https://github.com/DAMO-NLP-SG/VideoLLaMA3>
+- **Qwen2.5-VL**（Alibaba 2025，原生多帧）— <https://github.com/QwenLM/Qwen2.5-VL>
+- **MA-LMM: Memory-Augmented LMM for Long Video**（CVPR 2024）
+- **EgoSchema / LongVideoBench / Video-MME** — 评测集
+- 商业参考：**Rewind.ai** 的开源平替方向
+
+#### B.3 技术方案
+
+**三段式**：录屏 → 关键帧抽取 + chapter 摘要 → 视频 QA。
+
+##### B.3.1 录屏（扩 `/live`）
+- `src/commands/live/index.ts` 默认开 ffmpeg 录屏到 `~/.claude/sessions/<sid>/recording.mp4`（25 fps，h264，crf=28，预计 5 min ≈ 30 MB）。
+- 提供 `--no-record` 关闭。
+
+##### B.3.2 关键帧 + chapter（sidecar 新 method `video.summarize`）
+- 用 **PySceneDetect** 做 shot detection；shot 太短再补均匀采样。
+- 关键帧（默认 16 帧）→ 喂给 VLM 一次性出 chapter 摘要：`[{start, end, summary}]`。
+- 每个 chapter 的首帧用 SigLIP2 embed，入库到现有 LanceDB（schema 加字段 `kind="video_chapter"`、`session_id`、`time_range`、`video_path`）。
+
+##### B.3.3 视频 QA（sidecar 新 method `video.qa`）
+- 后端默认 **Qwen2.5-VL-7B**（多帧原生支持）；备选 VideoLLaMA3。
+- 接口：
+
+```jsonc
+{ "method": "video.qa",
+  "params": {
+    "video_path": "/path/recording.mp4",
+    "prompt": "When did the build fail?",
+    "frames": 16,            // 采样帧数
+    "time_range": [120, 360] // 可选，秒
+  } }
+```
+
+##### B.3.4 新工具 + 新命令
+- TS 新工具 `src/tools/vision/VideoQATool.ts`。
+- 新命令 `src/commands/replay/`：
+  - `/replay 5min` → 最近 5 min 视频 QA
+  - `/replay "刚才那个报错"` → 用 chapter 摘要 + SigLIP2 检索 top-3 chapter → 再视频 QA
+  - `/replay --list` → 列所有 session 视频
+
+#### B.4 Ticket 表（Sprint 6）
+
+| ID | 内容 | Acceptance |
+|----|------|------------|
+| S6-B1 | `/live` 集成 ffmpeg 录屏（开关 + 路径管理 + 优雅停止） | 录出可播放 mp4 |
+| S6-B2 | sidecar PySceneDetect 关键帧抽取 | 输入 mp4 输出 N 张 png |
+| S6-B3 | sidecar `video.summarize` （chapter 摘要 + 首帧 embed） | 5 min 视频 < 60s 出 chapter |
+| S6-B4 | sidecar `video.qa` 集成 Qwen2.5-VL-7B（multi-frame） | 单测：固定视频 + 固定问题答案稳定 |
+| S6-B5 | LanceDB schema 升级 + chapter 入库 hook（与方向 E 共用 session 结束钩子） | session 结束自动写入 |
+| S6-B6 | `VideoQATool` + `/replay` 命令 + 检索路径 | `/replay "...err"` 能定位 |
+| S6-B7 | demo：10 min session 录屏 → `/replay` 三类 query | 录 1 min demo |
+
+#### B.5 与现有代码集成点
+
+- 复用：`src/commands/live/`、`vision_sidecar/methods/embed.py`（SigLIP2）、`vision_sidecar/methods/rag.py`（LanceDB 写入）。
+- 新增：`vision_sidecar/methods/video.py`、`src/tools/vision/VideoQATool.ts`、`src/commands/replay/`、`src/services/sessionRecorder.ts`（ffmpeg 子进程包装）。
+- 修改：现有 LanceDB schema（新增 `kind` 字段，做向后兼容迁移：旧记录默认 `kind="screenshot"`）。
+
+#### B.6 Demo 设计
+
+录一段 10 min "调 bug 失败→改→成功"的真实开发过程，session 结束后跑：
+1. `/replay --list` 看到 session
+2. `/replay 5min "what changed?"` 出 timeline
+3. `/replay "the failed test"` 直接跳到失败那一刻 + 解释
+
+---
+
+### 12.3 方向 C — Multi-modal RAG / Document（ColPali / VisRAG / MinerU / DocLayout-YOLO）
+
+#### C.1 问题
+
+现在的 vision memory 只索引 screenshot；用户问"看这个 PDF 第 23 页那张图说明了啥"答不了；GitHub issue 中的图表/表格识别不准。Vision-Agents 的 `rag/` 模块也只是文本 RAG。
+
+#### C.2 论文/项目支撑
+
+- **ColPali / ColQwen2**（Faysse et al., 2024）— 文档 patch-level late-interaction 检索
+- **VisRAG: Vision-based RAG on Multi-modality Documents**（**OpenBMB 2024**）— <https://github.com/OpenBMB/VisRAG>
+- **MinerU**（Shanghai AI Lab 2024）— PDF → 结构化的开源 SOTA — <https://github.com/opendatalab/MinerU>
+- **Docling**（IBM 2024）— 备选
+- **DocLayout-YOLO**（2024）— 文档区域检测 — <https://github.com/opendatalab/DocLayout-YOLO>
+- **ChartGemma**（Google 2024）/ **TinyChart**（Alibaba 2024）— 图表 QA
+- **Table-LLaVA**（2024）— 表格图 QA
+
+#### C.3 技术方案
+
+**四段式**：文档解析 → 区域分类 → patch embedding → late-interaction RAG。
+
+##### C.3.1 文档解析
+- 新 sidecar method `doc.parse(path)`：
+  - PDF → MinerU 输出 page images + 结构化 markdown
+  - HTML → playwright 截每屏 + 保留 DOM
+  - markdown + 图 → 已有路径
+- 输出统一为 `[{page_idx, image_path, kind, bbox?, ocr_text?}]`，`kind` ∈ {`text` | `figure` | `chart` | `table`}。
+
+##### C.3.2 区域分类
+- 用 **DocLayout-YOLO** 在每页检测 region；裁出 figure/chart/table 单独存。
+- chart/table 用 ChartGemma / Table-LLaVA 生成"semantic caption"作为附加索引文本。
+
+##### C.3.3 Embedding（扩 `embed.py`）
+- 新增 `embed.colqwen2(image_path, mode="patches")`：返回 patch 级 embedding 矩阵（typical 1024 patches × 128 dim）。
+- 老的 SigLIP2 路径保留作 fallback。
+
+##### C.3.4 RAG（扩 `rag.py`）
+- LanceDB schema 升级：
+  - 加 `doc_id`、`page_idx`、`region_kind`、`patch_embeddings`（list[vector]）、`caption`、`source_path`。
+  - 老 screenshot 记录的 `region_kind="screenshot"`、`patch_embeddings=null` 兼容。
+- 检索：late-interaction MaxSim — 对 query embedding 与每个 patch 取 max，再 sum 排序。
+- 检索结果**整页**喂给 VLM 答（参考 VisRAG 设计）。
+
+##### C.3.5 新工具 + 新命令
+- TS 新工具 `src/tools/vision/DocRAGTool.ts`。
+- 新命令 `src/commands/doc/`：
+  - `/doc index <path-or-url>` — 一次性吃 PDF/URL/目录
+  - `/doc ask "..."` — 问问题（自动检索 + VLM）
+  - `/doc list` — 看已索引文档
+
+#### C.4 Ticket 表（Sprint 7，与方向 D 并行）
+
+| ID | 内容 | Acceptance |
+|----|------|------------|
+| S7-C1 | MinerU 集成（`doc.parse`） | 跑通 10 页 paper → page images + md |
+| S7-C2 | DocLayout-YOLO 区域检测 + crop | figure/chart/table 三类 ≥ 80% 召回 |
+| S7-C3 | ChartGemma + Table-LLaVA semantic caption | chart/table 都有非空 caption |
+| S7-C4 | `embed.colqwen2(patches)` + LanceDB schema 升级（含迁移脚本） | 老库可读 + 新字段可写 |
+| S7-C5 | `rag.py` 加 late-interaction retrieve | 准确率 vs 原 SigLIP2 路径有提升 |
+| S7-C6 | `DocRAGTool` + `/doc` 三个子命令 | 端到端 demo 通 |
+| S7-C7 | demo：吃 1 篇 10 页 paper + 1 篇 GitHub issue → 3 类 query（含跨表 / 含图） | 录 1 min |
+
+#### C.5 与现有代码集成点
+
+- 复用：现有 LanceDB（`~/.claude/vision_memory.lancedb`）、现有 `embed.py`、现有 `rag.py`、`WebFetchTool`（抓网页时联动）。
+- 新增：`vision_sidecar/methods/doc.py`、`vision_sidecar/methods/chart_table.py`、`src/tools/vision/DocRAGTool.ts`、`src/commands/doc/`。
+- 修改：`embed.py`（加 colqwen2）、`rag.py`（加 MaxSim 检索）、LanceDB schema（加 5 个字段 + 迁移脚本 `vision_sidecar/migrations/001_doc_rag.py`）。
+
+#### C.6 Demo 设计
+
+吃 1 篇 ColPali 论文 PDF + 1 个 GitHub issue 网页 → 问 3 类：
+1. "Table 3 哪个 baseline 最差？" → 跨页表格
+2. "Figure 2 是什么架构？" → 图表
+3. "issue #42 截图里报错了什么？" → 跨文档
+
+---
+
+### 12.4 方向 D — Visual Planning / World Model（WebDreamer / SeeAct / AppAgent v2）
+
+#### D.1 问题
+
+`gui_agent` 现在是 **reactive**：每一步 `screenshot → LLM(action) → execute`。失败率高，错了无法回退。Real-world GUI 操作中"想错一步 → 错下去 → 全盘崩"是 OSWorld 主要失败源。
+
+#### D.2 论文/项目支撑
+
+- **WebDreamer: Model-Based Planning for Web Agents**（OSU + Amazon 2024）— LLM 自己当 world model 模拟 — <https://github.com/OSU-NLP-Group/WebDreamer>
+- **SeeAct: Vision-Language Models as Web Agents**（OSU 2024）— visual grounding 与 planning 分离 — <https://github.com/OSU-NLP-Group/SeeAct>
+- **AppAgent v2**（Tencent 2024）— 手机 GUI 探索 + 知识库
+- **Magma**（Microsoft 2025）— 多模态 agent 基础模型
+- **NVIDIA Cosmos**（2025, Vision-Agents 已集成）— 真 world model，可选
+- **DeepMind Genie 2**（2024）— 可交互世界模型，仅做思路参考
+
+#### D.3 技术方案
+
+**核心**：在 `gui_agent` 加 PlannerLayer，把单步推理改为 **propose → simulate → select → execute**（纯文本模拟，不真做 image diffusion）。
+
+##### D.3.1 流程改造（`src/coordinator/gui_agent.ts`）
+```text
+当前 reactive:
+  screenshot → LLM.act() → execute
+
+改为 deliberative (planning_mode=true):
+  screenshot
+    → LLM.propose(k=3)              // 候选动作 K 个
+    → for each candidate:
+        LLM.predict_next_state()    // 纯文本描述下一帧
+    → LLM.judge(candidates)         // 选最优
+    → execute_selected
+```
+
+##### D.3.2 接口签名
+
+```typescript
+interface PlannerOptions {
+  planningMode: boolean
+  k: number              // 候选数（默认 3）
+  judgeModel?: string    // 选择器 LLM（默认同 base）
+  saveTreeTo?: string    // ~/.claude/gui_plans/<sid>/<step>.json
+}
+
+interface CandidateAction {
+  id: string
+  action: GUIAction        // 复用现有 click/type/scroll/hotkey
+  rationale: string
+  predictedNextState: string  // 纯文本描述
+  rewardScore?: number        // 0..1
+}
+```
+
+##### D.3.3 三个 prompt（写到 `src/coordinator/gui_planner/prompts/`）
+1. **propose.md**：`Given this screenshot and the goal, propose 3 atomic actions that could advance the task. Return JSON array.`
+2. **predict.md**：`If I do action X on this screenshot, describe in one paragraph what the next screenshot will look like. Be concrete.`
+3. **judge.md**：`Given the goal and these 3 predicted next states, which one most advances the task? Return {best_id, reason}.`
+
+##### D.3.4 可视化
+- 每步把候选树存 JSON：`~/.claude/gui_plans/<session>/step{N}.json`，含 K 个 candidate 的 prompt/response/score。
+- CLI 加 `/gui-plan-show <session> <step>` 查看树。
+
+#### D.4 Ticket 表（Sprint 7，与方向 C 并行）
+
+| ID | 内容 | Acceptance |
+|----|------|------------|
+| S7-D1 | 三个 prompt 模板（propose/predict/judge） | `gui_planner/prompts/*.md` |
+| S7-D2 | `PlannerLayer` 类实现：propose → predict → judge → select | 单测：mock LLM 时正确选最优 |
+| S7-D3 | `gui_agent.ts` 接入 `planning_mode` 选项 | reactive / deliberative 两路径切换 |
+| S7-D4 | 候选树 JSON 序列化 + 文件落盘 | 每步生成 1 个 json |
+| S7-D5 | `/gui-plan-show` 命令（ink 树状渲染） | CLI 可见 |
+| S7-D6 | 自测：OSWorld 子集 reactive vs deliberative 对照 | 成功率 / 平均步数对比表 |
+| S7-D7 | demo：选 1 例 reactive 失败、deliberative 成功的任务，录 90s | 含树展开过程 |
+
+#### D.5 与现有代码集成点
+
+- 复用：`src/coordinator/gui_agent.ts` 已有 GUIAction 类型、`vision_sidecar/methods/gui.py` 已有 click/type/scroll primitives、`vision_sidecar/methods/vlm.py`（VLM call）。
+- 新增：`src/coordinator/gui_planner/{planner.ts, prompts/}`、`src/commands/gui-plan-show/`。
+- 修改：`gui_agent.ts` 在 `actNextStep()` 前插 `planner.plan()` 分支。
+
+#### D.6 Demo 设计
+
+选 OSWorld 一个真实失败例（如"在 Slack 找昨天那条消息"）：reactive 死循环点错 → deliberative 看到候选树展开 → 走对路径 → 成功。
+
+---
+
+### 12.5 方向 E — Skill Discovery / Self-improving（VOYAGER / A-MEM / Letta / Mem0）
+
+#### E.1 问题
+
+每次 session 独立，agent 不"学习"。claude-code 原生 Skill 系统（`src/skills/loadSkillsDir.ts`）只跑 bundled skill，没有"自动发现"的入口。
+
+#### E.2 论文/项目支撑
+
+- **VOYAGER: An Open-Ended Embodied Agent with LLM**（NVIDIA 2023）— Minecraft 自动 skill library — <https://github.com/MineDojo/Voyager>
+- **A-MEM: Agentic Memory for LLM Agents**（Rutgers 2024）— 记忆自组织
+- **Letta**（前 MemGPT，UC Berkeley 2024）— persistent agent — <https://github.com/letta-ai/letta>
+- **Mem0**（开源）— 多层记忆 — <https://github.com/mem0ai/mem0>
+- **AutoSkill / Skill-LM**（2024）
+
+#### E.3 技术方案
+
+**两步**：session 结束反思 → 写 markdown skill 入 `~/.claude/skills/auto/`，下次启动 skill loader 自动激活。
+
+##### E.3.1 Session 结束 hook
+- 在 `/exit` / SIGINT / session 自然结束时触发 `reflectSession(transcript)`：
+  - 让 base LLM 读完整 transcript → 输出 JSON：
+
+```jsonc
+[{
+  "name": "screenshot-to-tailwind-card",
+  "description": "Convert a UI screenshot to a Tailwind React card component",
+  "when_to_use": "User provides a card-like UI screenshot...",
+  "instructions": "1. Use VisionQATool to extract...\n2. ...",
+  "allowed_tools": ["VisionQATool", "FileWriteTool", "BashTool"],
+  "evidence": ["session_xxx step 3-8"]
+}]
+```
+  - 把每个 skill 写成 `~/.claude/skills/auto/<name>.md`，frontmatter + 正文，**复用 claude-code 已有 skill markdown 格式**。
+
+##### E.3.2 Skill loader 兼容
+- `src/skills/loadSkillsDir.ts` 已有目录扫描；只需在 init 时把 `auto/` 加入 search path。
+- 加 conflict resolution：同名 skill 后入版本覆盖前者，但保留历史在 `auto/_archive/`。
+
+##### E.3.3 三层记忆抽象（轻量复刻 A-MEM / Letta）
+- **Working memory**：当前 session in-memory（已有，不动）。
+- **Archival memory**：`~/.claude/memdir/` （已有，不动）。
+- **Skill memory**：`~/.claude/skills/auto/` （新增）。
+- 后续可平滑切到 Mem0，但本 sprint 不做。
+
+##### E.3.4 Reflection prompt（`src/services/skillDiscovery/prompts/reflect.md`）
+```text
+You are reviewing a coding session transcript. Identify 0-3 reusable skills.
+A "skill" is a reusable workflow that worked successfully in this session.
+Be strict: only extract if the same procedure would help in a similar future task.
+Output JSON: [{name, description, when_to_use, instructions, allowed_tools, evidence}].
+If nothing reusable, output [].
+```
+
+#### E.4 Ticket 表（Sprint 5，与方向 A 并行）
+
+| ID | 内容 | Acceptance |
+|----|------|------------|
+| S5-E1 | reflection prompt + JSON schema 校验 | `prompts/reflect.md` + zod schema |
+| S5-E2 | `reflectSession()` 实现：transcript 抽取 + LLM 调用 + 文件写入 | 单测：mock LLM 输出 → 写出正确 md |
+| S5-E3 | session 结束 hook：`/exit` / SIGINT 都触发 | 端到端：跑一个 session 后 `~/.claude/skills/auto/` 有新文件 |
+| S5-E4 | skill loader 加 `auto/` 路径 + conflict resolution（同名 archive） | 单测：连跑 2 次同任务，第 2 次能用上第 1 次 skill |
+| S5-E5 | `/skills list-auto` 命令查看自动 skill | CLI 可见 |
+| S5-E6 | demo：连跑 3 个 `/design2code` 任务，第 4 个自动调 skill 跳过 scaffold | 录 1 min |
+
+#### E.5 与现有代码集成点
+
+- 复用：`src/skills/loadSkillsDir.ts`（已有 skill 加载机制）、现有 `SkillTool`、现有 session 退出钩子。
+- 新增：`src/services/skillDiscovery/{reflect.ts, prompts/reflect.md, schema.ts}`、`src/commands/skills/list-auto.ts`。
+- 修改：`src/skills/loadSkillsDir.ts`（加 `auto/` 路径）、session 退出处加 hook 注册。
+
+#### E.6 Demo 设计
+
+跑 3 个不同设计图的 `/design2code` 任务 → CLI 显示"discovered 2 new skills: card-component, login-form" → 第 4 个相似任务直接命中 skill，不再 scaffold from scratch，时间从 ~3min 缩到 ~30s。
+
+---
+
+### 12.6 Sprint 5–8 节奏与并发安排
+
+> 节奏延续 §6 "AI 自驱 sprint + 人周末 checkpoint"。每周一 5min 批 ticket、周日 15min 看 demo。
+
+| Sprint | 周 | 主题 | 主线 tickets | 可并发 |
+|--------|------|------|----------------|--------|
+| **S5** | W5 | 深度升级：A + E | S5-A1~A6, S5-E1~E6 | A 与 E 完全独立，可分 2 个 agent 并行 |
+| **S6** | W6 | 视频：B | S6-B1~B7 | B 内部串行（B5 依赖 B3） |
+| **S7** | W7 | 广度 + 规划：C + D | S7-C1~C7, S7-D1~D7 | C/D 完全独立，可分 2 个 agent 并行 |
+| **S8** | W8 | 收尾：综合评测 + 报告 v2 + final demo | S8-1 评测设计、S8-2 跑评测、S8-3 报告升级、S8-4 5min 视频脚本+录制、S8-5 PPT | 评测内部可并发 |
+
+**Sprint 8 评测内容**（兑现 §8 的"延后到 Sprint 5 决定"承诺，现在落地）：
+- **方向 A 评测**：自构 30 例 small-text/dense-UI 题，agentic on/off 对照。
+- **方向 B 评测**：自构 10 个 5–10 min screen recording + 各 5 个 query，VideoQA 准确率。
+- **方向 C 评测**：MMLongBench-Doc 子集 + 自构 5 个 PDF（论文/wiki/财报），跨页跨表问答准确率。
+- **方向 D 评测**：OSWorld 子集 reactive vs deliberative 任务成功率 + 平均步数。
+- **方向 E 评测**：自构连续 5 个相似任务，第 N 个相对第 1 个的时间/token 节省曲线。
+
+### 12.7 人/AI 分工更新（覆盖 §7）
+
+新增方向后人工总投入预估：
+
+| 阶段 | 人投入 |
+|------|--------|
+| Sprint 0–4（原 PLAN） | 5–6h |
+| Sprint 5–8（新增） | 3–4h |
+| **总计** | **8–10h，分布在 8 周内** |
+
+人新增的任务**仅有**：每个 sprint 周日 15min demo 验收（不变） + Sprint 8 评测结果 review（多一次，约 30min）。AI 仍包揽所有编码、文档、录屏、报告初稿。
+
+### 12.8 风险更新（覆盖 §9 增量部分）
+
+| 风险 | 概率 | 影响 | 缓解 |
+|------|------|------|------|
+| 方向 A：VLM 输出 JSON 不合规、micro-loop 死循环 | 中 | 中 | JSON schema + zod 校验 + 重试上限；`max_steps` 兜底 |
+| 方向 B：Qwen2.5-VL-7B 视频推理慢（单次 30s+） | 高 | 中 | 关键帧降到 8 帧；提供 vLLM endpoint fallback |
+| 方向 C：MinerU 安装重（含 PyTorch + OCR 模型 ~3GB） | 中 | 中 | 写 `scripts/install_doc_rag.sh` 隔离安装；Docling 备选 |
+| 方向 C：LanceDB schema migration 破坏老数据 | 中 | 高 | 迁移脚本必须可回滚；先 dry-run + 备份目录 |
+| 方向 D：planning 模式延迟 4× reactive | 高 | 中 | 不默认开；只在 reactive 失败 2 次后自动 escalate |
+| 方向 E：reflection 产出垃圾 skill 污染 loader | 中 | 中 | 严格 prompt + 人 review 前先放在 `auto/_pending/`；用户手动批准移到 `auto/` |
+| 整体：8 周节奏被某个 sprint 拖延 | 中 | 中 | S5/S7 双 agent 并行天然有 buffer；S8 评测可砍方向 |
+
+### 12.9 给 kimi 的"任务接收说明"
+
+如果你（kimi）从这一节开始接手：
+
+1. **先读**：`PLAN.md` §3 / §6 / §10 了解原始 6 模块边界；`REPORT.md` 了解已实现状态；`src/vision/types.ts` 了解类型约定。
+2. **再读本节 §12.0–12.5**：理解 5 个方向的接口与 ticket。
+3. **执行顺序**：严格按 §12.6 的 sprint 顺序。每个 sprint 内的 ticket ID（如 S5-A1）就是 commit message 前缀。
+4. **不要做**：
+   - 不要新建额外的 vision tool（7 个够用）。
+   - 不要替换 SigLIP2 / LanceDB / Qwen2.5-VL 等已选型组件（除非有证据更优）。
+   - 不要在 Sprint 5–7 跑任何评测（评测统一在 Sprint 8）。
+5. **每个 ticket 完成 = 1 个 commit**，前缀 ticket ID + 简短描述。
+6. **每个 sprint 结束**：在 `docs/sprint_<N>_summary.md` 写 200 字总结 + 1 个 demo gif/mp4 路径。
+
+---
+
+## 13. 立即可以开干
 
 本计划已定稿。需要你做的：
-1. **最终批准本 PLAN**（再扫一遍 §3 模块设计、§6 sprint 节奏、§7 人/AI 分工）。
+1. **最终批准本 PLAN**（再扫一遍 §3 / §6 / §12 / §7）。
 2. 准备一次性资源：Anthropic / OpenAI / Gemini API key；本地能跑 8B VLM 的机器（Mac M-series 24GB+ 或单卡 24GB GPU）。
-3. 后续每个 sprint，你只需做"周一 5min 批 sprint plan / 周日 15min 看 demo"两件事。
+3. 后续每个 sprint，你只需做"周一 5min 批 sprint plan / 周日 15min 看 demo"。
 
-执行由后续 Cursor agent 按 §6 ticket 化进行；本对话只负责订计划，不负责跑。
+执行由后续 Cursor agent（或 kimi）按 §6（基线）+ §12（扩展）的 ticket 列表进行；本对话只负责订计划，不负责跑。
