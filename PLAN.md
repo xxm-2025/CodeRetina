@@ -50,13 +50,13 @@
 4. **3 个端到端 demo**：
    - **Demo A — Screenshot-to-Code**：设计图 → agent 写代码 → playwright 截图 → diff → 反思迭代。
    - **Demo B — Visual Bug Reproduction**：agent 启 dev server → 截图浏览器 → 定位 UI bug → 提交 patch。
-   - **Demo C — GUI Pair Programming**（stretch）：屏幕共享 + Gemini Live 实时讲解。
-5. **Mini Benchmark**：自建 20 例 visual-coding + Design2Code 子集 10 例 + VisualWebArena 子集 10 例。
+   - **Demo C — GUI Pair Programming**：屏幕共享 + Gemini Live 实时讲解 + 屏幕 overlay 标注。
+5. **Mini Benchmark**：自建 + Design2Code / VisualWebArena / OSWorld 子集（具体规模由跑评测时决定，本计划阶段不锁数）。
 6. **课程报告 + 5 分钟 demo 视频**。
 
 ---
 
-## 3. 模块设计（7 模块）
+## 3. 模块设计（6 模块）
 
 > 设计原则：**每个模块独立可用 + 可退化**。所有视觉计算优先走本地小模型，失败/不够准再升级到 Claude / Gemini-Vision。
 
@@ -137,31 +137,27 @@ src/vision/router/
   4. `ImageDiffTool`（pixelmatch + CLIP）打分；低于阈值则进入 reflection 修源码再截图。
   5. 最多 N 轮（默认 5），输出最终 diff 报告。
 
-### 模块 5：视觉验证闭环（Visual Test Loop）
+### 模块 5：视觉记忆 + 验证闭环（合并）
 
-**目标**：作为日常 dev 副驾，**每次代码改动后自动跑视觉回归**。
+**合并理由**：两者数据通路同源（都是"把见过的截图存下来 + 出问题时检索/比对"），区别只是"主动 vs 被动触发"。一套存储 + 一套检索接口，外加两种触发器。
 
-- 新 slash command：`/visual-debug`。
-- 触发器：文件保存或 `git diff` 非空（chokidar watcher）。
-- 步骤：起 dev server → `BrowserVisionTool` 截当前路由 → 与"上次成功"截图 diff → 异常区域 crop 后送 `VisionQATool` 问"这里看起来对吗？预期是 X"。
-- 与 `FileEditTool` 联动：LLM 判异常时自动产出补丁建议。
-
-### 模块 6：视觉 Memory + 多模态 RAG
-
-**目标**：让 agent 记住"上次见过的截图/UI 状态"，支持"上次那个红色按钮在哪？"。
-
-- 嵌入器：SigLIP2 或 CLIP-Large（sidecar）。
+**统一存储**：
+- 嵌入器：SigLIP2（默认）或 CLIP-Large（sidecar）。
 - 文档级视觉检索：ColPali / ColQwen2（PDF/截图 patch embedding + late-interaction）。
 - 存储：`~/.claude/vision_memory.lancedb`（LanceDB 本地，零运维）。
-- 新 Tool：`VisionMemorySearchTool`，与原 `memdir/` 持久记忆体系打通。
+- 自动入库 hook：每次 `BrowserVisionTool` / `ScreenshotTool` / `FileReadTool` 看到的图都打 tag 入库。
 
-### 模块 7：实时多模态 Live 模式（**stretch，可砍**）
+**两个使用面**：
+1. **被动记忆查询**（slash command `/recall`）：用 `VisionMemorySearchTool`，回答"上次那个红色按钮在哪？"这种问题。
+2. **主动验证闭环**（slash command `/visual-debug`）：chokidar watcher → 文件保存触发 → 起 dev server → `BrowserVisionTool` 截当前路由 → 与库里"上次成功"截图做 `ImageDiffTool` → 异常区域 crop 后送 `VisionQATool` 问"这里看起来对吗？预期是 X" → 与 `FileEditTool` 联动自动产出补丁建议。
+
+### 模块 6：实时多模态 Live 模式
 
 - 新 slash command：`/live`。
 - 输入：屏幕共享流 + 麦克风。
-- 处理：屏幕流 → VideoForwarder（直接复用 Vision-Agents）→ YOLO/OmniParser → 关键帧降采样 → Gemini Live / OpenAI Realtime。
-- 输出：TTS 实时讲解 + 屏幕 set-of-mark overlay。
-- **明确为 stretch**：不阻塞主线交付，时间不够直接砍。
+- 处理：屏幕流 → VideoForwarder（直接复用 Vision-Agents）→ YOLO/OmniParser → 关键帧降采样（fps=2）→ Gemini Live 或 OpenAI Realtime。
+- 输出：TTS 实时讲解 + 屏幕 set-of-mark overlay（独立 overlay 窗口，复用 `AnnotateTool` 渲染）。
+- 集成路径：直接复用 Vision-Agents 的 `Agent` 类编排（`edge` 用 local screen capture 替代 WebRTC，`llm` 用 `gemini.Realtime` / `openai.Realtime`），降低自研成本。
 
 ---
 
@@ -346,36 +342,36 @@ src/vision/router/
 
 **人介入点**：周日看 demo，判断"截图驱动开发"质量是否值得继续做模块 5（如果不行就砍/合并模块 5）。
 
-### 6.5 Sprint 3（Week 3）— GUI Agent + 视觉验证闭环
+### 6.5 Sprint 3（Week 3）— GUI Agent + 视觉记忆/验证闭环（模块 3 + 5 一半）
 
 | Ticket | 内容 | Acceptance |
 |--------|------|------------|
 | S3-1 | `/visual-debug` command + chokidar watcher | 文件保存触发自动截图 + diff |
-| S3-2 | GUI Agent 远程派：Anthropic Computer Use API 集成 | OSWorld 10 例子集跑通 |
+| S3-2 | GUI Agent 远程派：Anthropic Computer Use API 集成 | OSWorld 子集能跑通 |
 | S3-3 | GUI Agent sandbox：docker + Xvfb 脚本 | 隔离运行 |
-| S3-4 | GUI Agent 本地派：UI-TARS-1.5 sidecar（**stretch**，时间不够就砍） | 同样 OSWorld 10 例 |
+| S3-4 | GUI Agent 本地派：UI-TARS-1.5 sidecar（**必做**） | 同样跑 OSWorld 子集，输出与远程派对照表 |
 | S3-5 | Sprint demo：`/gui "打开 calculator 算 23×17"` + `/visual-debug` 演示 | 录 1min mp4 |
 
-**人介入点**：周日看 demo。如果 S3-4 没做完不阻塞。
+**人介入点**：周日看 demo。
 
-### 6.6 Sprint 4（Week 4）— 视觉 Memory + Eval + 收尾
+### 6.6 Sprint 4（Week 4）— 视觉记忆收尾 + Live 模式 + 报告
 
 | Ticket | 内容 | Acceptance |
 |--------|------|------------|
-| S4-1 | SigLIP2 + LanceDB 嵌入存储 | 索引 ≥ 100 张图能 <100ms 检索 |
-| S4-2 | `VisionMemorySearchTool` + 自动入库 hook | tool 跑通 |
-| S4-3 | 自建 mini-eval 20 例（含 5 例真实 GitHub issue 截图） | `eval/visual_coding/` |
-| S4-4 | 跑 Design2Code 子集 10 例 + VisualWebArena 子集 10 例 | `eval/results/*.jsonl` |
-| S4-5 | Routing ablation：关 router / 全走 Tier 1 / 全走 Tier 3 三个对照 | `eval/ablation_router.md` |
-| S4-6 | 报告 `REPORT.md` 初稿（架构图、消融、案例） | ≥ 8 页 |
+| S4-1 | SigLIP2 + LanceDB 嵌入存储 + 自动入库 hook（与模块 5 主动验证打通） | 索引 ≥ 100 张图能 <100ms 检索 |
+| S4-2 | `VisionMemorySearchTool` + `/recall` command | tool 跑通 |
+| S4-3 | `/live` 模式：复用 Vision-Agents 的 `Agent` 类编排屏幕流 + Gemini Live / OpenAI Realtime | 能边看屏幕边讲解 30s+ |
+| S4-4 | 屏幕 overlay 渲染（独立窗口，set-of-mark 标注） | 能在屏幕上画框 |
+| S4-5 | 评测脚本骨架 `eval/run.py`（具体数据集和题目数待 Sprint 启动时定） | 框架可跑、留空待填 |
+| S4-6 | 报告 `REPORT.md` 初稿（架构图、案例、消融位留空） | ≥ 8 页骨架 |
 | S4-7 | 录 5 分钟 demo 视频（脚本 + 录屏 + 字幕） | mp4 |
 
-**人介入点**：周末整理报告署名/课程模板适配（预计 1–2h）。
+**人介入点**：周末整理报告署名 / 课程模板适配（预计 1–2h）。
 
-### 6.7 缓冲（Week 5，可选）
+### 6.7 缓冲（Week 5）
 
-- 修 bug、补单测覆盖率 ≥ 60%、模块 7 Live 模式（如果还有精力）。
-- 否则用于让 AI 重写报告 / 改 PPT。
+- 跑评测（具体设计在这一周根据模块完成度临场决定，§8 仅给方向不锁规模）。
+- 修 bug、补单测覆盖率 ≥ 60%、报告精修、PPT。
 
 ---
 
@@ -399,18 +395,21 @@ src/vision/router/
 
 ---
 
-## 8. 评测方案
+## 8. 评测方案（仅方向，规模/题目数延后到 Sprint 5 决定）
 
-| 类别 | 数据集 | 规模 | 指标 |
-|------|--------|------|------|
-| Screenshot→Code | Design2Code 子集 | 10 | CLIP-similarity / 颜色 MAE / 人工 1–5 分 |
-| Visual Web Task | VisualWebArena 子集 | 10 | task success rate |
-| GUI Operation | OSWorld 子集（macOS apps） | 10 | step-level + task-level success |
-| 自建 Visual-Coding | 自构 20 例（含 5 个真实 GitHub issue 截图） | 20 | success + 平均轮数 + 平均成本 |
-| **Routing 消融** | 全 Tier1 / 全 Tier3 / 路由 | — | 任务成功率 vs 成本散点 |
-| **模块消融** | 关 ImageDiff / 关 reflection / 关 router | — | 同上 |
+**候选数据集**：
+- Screenshot→Code：Design2Code
+- Visual Web Task：VisualWebArena
+- GUI Operation：OSWorld（macOS apps 子集）
+- 自建 Visual-Coding：含若干真实 GitHub issue 截图
 
-所有评测脚本进 `eval/`，结果固化到 `eval/results/*.jsonl`。
+**候选指标**：CLIP-similarity / 颜色 MAE / task success rate / step-level success / 平均轮数 / 平均成本。
+
+**候选消融**：
+- Routing ablation：全 Tier1 / 全 Tier3 / 完整路由
+- 模块 ablation：关 ImageDiff / 关 reflection / 关 router
+
+> 现阶段不写具体题目数与跑评细节；Sprint 5 启动时根据模块完成度、API 预算、报告字数要求临场决定。所有评测脚本未来进 `eval/`，结果固化到 `eval/results/*.jsonl`。
 
 ---
 
@@ -423,7 +422,8 @@ src/vision/router/
 | Anthropic Computer Use API 费用 | 中 | 中 | Router 预算控制；本地派作为 fallback |
 | Playwright headless 在 macOS arm64 不稳 | 中 | 低 | Playwright 1.45+ 原生支持；CI 走 ubuntu runner |
 | GUI 操作真实点击造成误操作 | 高 | 高 | 默认 dry-run；`--yolo` 才执行；docker+xvfb sandbox |
-| 模块 7 (Live) realtime API 调通耗时 | 高 | 低 | 标 stretch，直接砍也不影响主线 |
+| 模块 6 (Live) realtime API 调通耗时 | 中 | 中 | 直接复用 Vision-Agents 的 `gemini.Realtime` / `openai.Realtime`，不自研协议层；最坏情况退化为"5s 一帧"伪实时 |
+| UI-TARS-1.5 本地推理慢/不稳 | 中 | 中 | 量化版优先（Q4/Q5 GGUF），单机跑不动就走 vLLM remote endpoint |
 | AI 子 agent 跑偏（如改坏不该改的目录） | 中 | 中 | 每个 sprint 严格 ticket 化，PR 形式合入；人周日 review diff |
 
 ---
@@ -524,9 +524,11 @@ claude-code-vision/
 
 ---
 
-## 12. 立即可以开干（极简）
+## 12. 立即可以开干
 
-只需要做一件事：**`/agent` 让 Cursor agent 开干 Sprint 0**。Sprint 0 的所有 ticket 都不需要人介入，跑完后你周日来看输出即可。
+本计划已定稿。需要你做的：
+1. **最终批准本 PLAN**（再扫一遍 §3 模块设计、§6 sprint 节奏、§7 人/AI 分工）。
+2. 准备一次性资源：Anthropic / OpenAI / Gemini API key；本地能跑 8B VLM 的机器（Mac M-series 24GB+ 或单卡 24GB GPU）。
+3. 后续每个 sprint，你只需做"周一 5min 批 sprint plan / 周日 15min 看 demo"两件事。
 
-提示词模板：
-> "按 `PLAN.md` §6.2 跑 Sprint 0 的 S0-1 到 S0-6，每个 ticket 完成后在该 ticket 旁打勾，最后产出一个 sprint-0 总结。"
+执行由后续 Cursor agent 按 §6 ticket 化进行；本对话只负责订计划，不负责跑。
