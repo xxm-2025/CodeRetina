@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Claude Code Vision - 测试运行器
+CodeRetina - 测试运行器
 
 运行 Sprint 0-2 的所有测试
 """
@@ -130,7 +130,7 @@ def main():
     runner = TestRunner(project_root)
 
     print("=" * 60)
-    print("Claude Code Vision - Sprint 0-2 测试套件")
+    print("CodeRetina - Sprint 0-2 测试套件")
     print("=" * 60)
 
     # Sprint 0 测试

@@ -25,7 +25,7 @@ SAMPLE_IMAGE="$DEMO_DIR/sample.png"
 
 echo -e "${BLUE}"
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         Claude Code Vision — Sprint 1 Demo                 ║"
+echo "║         CodeRetina — Sprint 1 Demo                 ║"
 echo "║   视觉中台 + VisionQATool + OCRTool + AnnotateTool        ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"

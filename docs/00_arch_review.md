@@ -1,4 +1,4 @@
-# Claude Code Vision —— 架构评审与 Tool-Call 时序分析
+# CodeRetina —— 架构评审与 Tool-Call 时序分析
 
 ## 1. 文档信息
 

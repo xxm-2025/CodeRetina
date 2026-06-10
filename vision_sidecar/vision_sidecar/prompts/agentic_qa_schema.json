@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgenticQAAction",
+  "description": "Agentic Visual Search Action Schema",
+  "type": "object",
+  "required": ["action", "rationale"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["crop", "zoom", "annotate", "grid_split", "answer"],
+      "description": "要执行的动作类型"
+    },
+    "bbox": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "边界框坐标 [x1, y1, x2, y2]，crop和annotate时需要"
+    },
+    "factor": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 2,
+      "description": "缩放倍数，zoom时需要"
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "标注标签列表，annotate和grid_split时需要"
+    },
+    "grid_size": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "网格大小 [rows, cols]，grid_split时需要"
+    },
+    "text": {
+      "type": "string",
+      "description": "回答文本，answer动作时需要"
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 10,
+      "description": "选择此动作的推理说明，必须详细"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "const": "crop" } } },
+      "then": { "required": ["bbox"] }
+    },
+    {
+      "if": { "properties": { "action": { "const": "zoom" } } },
+      "then": { "required": ["factor"] }
+    },
+    {
+      "if": { "properties": { "action": { "const": "annotate" } } },
+      "then": { "required": ["bbox", "labels"] }
+    },
+    {
+      "if": { "properties": { "action": { "const": "grid_split" } } },
+      "then": { "required": ["grid_size", "labels"] }
+    },
+    {
+      "if": { "properties": { "action": { "const": "answer" } } },
+      "then": { "required": ["text"] }
+    }
+  ]
+}

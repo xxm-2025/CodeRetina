@@ -27,7 +27,7 @@ SAMPLE_DESIGN="$DEMO_DIR/design_sample.png"
 
 echo -e "${BLUE}"
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         Claude Code Vision — Sprint 2 Demo                 ║"
+echo "║         CodeRetina — Sprint 2 Demo                 ║"
 echo "║  Screenshot + BrowserVision + ImageDiff + UI Parse +       ║"
 echo "║  /design2code                                              ║"
 echo "╚════════════════════════════════════════════════════════════╝"

@@ -479,6 +479,94 @@ async function loadSkillsFromSkillsDir(
   return results.filter((r): r is SkillWithPath => r !== null)
 }
 
+/**
+ * Loads skills from the auto/ directory.
+ * Supports single-file format: skill-name.md (different from regular skills which use skill-name/SKILL.md)
+ * Used for auto-discovered skills from skill-discovery reflection.
+ */
+async function loadSkillsFromAutoDir(
+  basePath: string,
+  source: SettingSource,
+): Promise<SkillWithPath[]> {
+  const fs = getFsImplementation()
+
+  let entries
+  try {
+    entries = await fs.readdir(basePath)
+  } catch (e: unknown) {
+    // Directory doesn't exist or is inaccessible — this is expected if no auto skills discovered yet
+    return []
+  }
+
+  const results = await Promise.all(
+    entries.map(async (entry): Promise<SkillWithPath | null> => {
+      try {
+        // Only support single .md file format: skill-name.md
+        if (!entry.isFile() || !entry.name.endsWith('.md')) {
+          return null
+        }
+
+        // Skip hidden files and special directories
+        if (entry.name.startsWith('_')) {
+          return null
+        }
+
+        const skillFilePath = join(basePath, entry.name)
+        const skillName = entry.name.replace('.md', '')
+
+        let content: string
+        try {
+          content = await fs.readFile(skillFilePath, { encoding: 'utf-8' })
+        } catch (e: unknown) {
+          if (!isENOENT(e)) {
+            logForDebugging(`[skills] failed to read auto skill ${skillFilePath}: ${e}`, {
+              level: 'warn',
+            })
+          }
+          return null
+        }
+
+        const { frontmatter, content: markdownContent } = parseFrontmatter(
+          content,
+          skillFilePath,
+        )
+
+        const parsed = parseSkillFrontmatterFields(
+          frontmatter,
+          markdownContent,
+          skillName,
+        )
+        const paths = parseSkillPaths(frontmatter)
+
+        // Auto skills use a special loadedFrom value to distinguish them
+        return {
+          skill: createSkillCommand({
+            ...parsed,
+            skillName,
+            markdownContent,
+            source,
+            baseDir: basePath, // Auto skills share a common base directory
+            loadedFrom: 'skills', // Use 'skills' but they come from auto/ subdirectory
+            paths,
+          }),
+          filePath: skillFilePath,
+        }
+      } catch (error) {
+        logError(error)
+        return null
+      }
+    }),
+  )
+
+  const skills = results.filter((r): r is SkillWithPath => r !== null)
+
+  if (skills.length > 0) {
+    logForDebugging(`[skills] Loaded ${skills.length} auto-discovered skill(s) from ${basePath}`)
+  }
+
+  return skills
+}
+
 // --- Legacy /commands/ loader ---
 
 function isSkillFile(filePath: string): boolean {
@@ -635,14 +723,22 @@ async function loadSkillsFromCommandsDir(
  *
  * @param cwd Current working directory for project directory traversal
  */
+/**
+ * 获取自动发现技能的目录路径
+ */
+function getAutoSkillsDir(): string {
+  return join(getClaudeConfigHomeDir(), 'skills', 'auto')
+}
+
 export const getSkillDirCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
     const userSkillsDir = join(getClaudeConfigHomeDir(), 'skills')
+    const autoSkillsDir = getAutoSkillsDir()
     const managedSkillsDir = join(getManagedFilePath(), '.claude', 'skills')
     const projectSkillsDirs = getProjectDirsUpToHome('skills', cwd)
 
     logForDebugging(
-      `Loading skills from: managed=${managedSkillsDir}, user=${userSkillsDir}, project=[${projectSkillsDirs.join(', ')}]`,
+      `Loading skills from: managed=${managedSkillsDir}, user=${userSkillsDir}, auto=${autoSkillsDir}, project=[${projectSkillsDirs.join(', ')}]`,
     )
 
     // Load from additional directories (--add-dir)
@@ -674,11 +770,12 @@ export const getSkillDirCommands = memoize(
       return additionalSkillsNested.flat().map(s => s.skill)
     }
 
-    // Load from /skills/ directories, additional dirs, and legacy /commands/ in parallel
+    // Load from /skills/ directories, auto skills, additional dirs, and legacy /commands/ in parallel
     // (all independent — different directories, no shared state)
     const [
       managedSkills,
       userSkills,
+      autoSkills,
       projectSkillsNested,
       additionalSkillsNested,
       legacyCommands,
@@ -688,6 +785,11 @@ export const getSkillDirCommands = memoize(
         : loadSkillsFromSkillsDir(managedSkillsDir, 'policySettings'),
       isSettingSourceEnabled('userSettings') && !skillsLocked
         ? loadSkillsFromSkillsDir(userSkillsDir, 'userSettings')
+        : Promise.resolve([]),
+      // Auto-discovered skills from skill-discovery reflection
+      // These are single-file format (name.md) unlike regular skills (name/SKILL.md)
+      isSettingSourceEnabled('userSettings') && !skillsLocked
+        ? loadSkillsFromAutoDir(autoSkillsDir, 'userSettings')
         : Promise.resolve([]),
       projectSettingsEnabled
         ? Promise.all(
@@ -714,8 +816,10 @@ export const getSkillDirCommands = memoize(
     ])
 
     // Flatten and combine all skills
+    // Order matters: auto skills are loaded early so user skills can override them
     const allSkillsWithPaths = [
       ...managedSkills,
+      ...autoSkills,
       ...userSkills,
       ...projectSkillsNested.flat(),
       ...additionalSkillsNested.flat(),

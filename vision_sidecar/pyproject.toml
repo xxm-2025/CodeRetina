@@ -1,7 +1,7 @@
 [project]
 name = "vision-sidecar"
 version = "0.1.0"
-description = "Python sidecar for Claude Code Vision —— 视觉处理服务"
+description = "Python sidecar for CodeRetina —— 视觉处理服务"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

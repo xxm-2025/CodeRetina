@@ -14,7 +14,7 @@
 set -e
 
 # 配置
-IMAGE_NAME="claude-code-vision-gui"
+IMAGE_NAME="coderetina-gui"
 CONTAINER_NAME="gui-sandbox"
 VNC_PORT=5900
 HTTP_PORT=6080

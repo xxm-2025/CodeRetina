@@ -1,5 +1,5 @@
 /**
- * Claude Code Vision —— 极简入口
+ * CodeRetina —— 极简入口
  *
  * 目的: 替代原 main.tsx，提供不依赖已删除模块的最小可运行 CLI
  * 功能: 仅挂载核心 Tool (Bash/File/Grep/Web 等)，验证 tool-call 循环正常
@@ -60,7 +60,7 @@ function createMinimalConfig(): QueryEngineConfig {
  * 极简 CLI 主循环
  */
 async function main() {
-  console.log('🎨 Claude Code Vision — Minimal Entry')
+  console.log('🎨 CodeRetina — Minimal Entry')
   console.log('=====================================\n')
 
   const config = createMinimalConfig()

@@ -16,6 +16,8 @@
 
 import { randomUUID } from 'crypto'
 import type {
+  AgenticRequest,
+  AgenticResult,
   BudgetConfig,
   CacheConfig,
   RoutingDecision,
@@ -538,6 +540,111 @@ export class VisionRouter {
       budgetLimit,
       budgetRemaining: Math.max(0, budgetLimit - this.sessionCost),
       tierDistribution,
+    }
+  }
+
+  // ============================================================================
+  // Agentic Visual Search (Sprint 5 方向 A)
+  // ============================================================================
+
+  /**
+   * 启发式判断是否需要启用 Agentic 模式
+   *
+   * 触发关键词：
+   * - 小目标/小字: tiny, small text, small font, error code, fine print
+   * - 密集UI: dense, crowded, many buttons, complex ui
+   * - 精确定位: bottom-right, top-left, corner, specific location
+   * - 细节识别: details, zoom in, magnify
+   */
+  shouldUseAgentic(prompt: string): boolean {
+    const promptLower = prompt.toLowerCase()
+
+    const agenticKeywords = [
+      // 小字/小目标
+      'tiny', 'small text', 'small font', 'fine print', 'micro',
+      'error code', 'code:', 'status code',
+      // 密集UI
+      'dense', 'crowded', 'many buttons', 'complex ui', 'ui element',
+      'toolbar', 'menu bar', 'control panel',
+      // 精确定位
+      'bottom-right', 'bottom right', 'top-left', 'top left',
+      'corner', 'specific location', 'exactly where',
+      // 细节
+      'details', 'zoom in', 'magnify', 'enlarge', 'look closer',
+      // 表格/图表
+      'table cell', 'chart data', 'specific cell',
+    ]
+
+    const shouldTrigger = agenticKeywords.some((kw) => promptLower.includes(kw))
+
+    if (shouldTrigger) {
+      console.log(`[Router] Agentic mode triggered by keywords in: "${prompt.substring(0, 50)}..."`)
+    }
+
+    return shouldTrigger
+  }
+
+  /**
+   * 执行 Agentic 视觉查询
+   *
+   * 通过 crop/zoom/annotate/grid_split 多轮迭代获取答案
+   */
+  async agenticQuery(request: AgenticRequest): Promise<AgenticResult> {
+    const startTime = Date.now()
+
+    // 调用 sidecar 的 vlm.agentic_qa 方法
+    const result = await this.sidecar.call<{
+      answer: string
+      confidence: number
+      steps: Array<{
+        step: number
+        action: string
+        rationale: string
+        bbox?: number[]
+        factor?: number
+        grid_size?: number[]
+        labels?: string[]
+        answer?: string
+        image_path?: string
+      }>
+      trace_images: string[]
+      total_latency_ms: number
+      model: string
+      session_id?: string
+      trace_dir?: string
+      max_steps_reached?: boolean
+    }>('vlm.agentic_qa', {
+      image_path: request.imagePath,
+      prompt: request.prompt,
+      max_steps: request.maxSteps ?? 5,
+      base_model: request.baseModel ?? 'moondream2',
+    })
+
+    const latencyMs = Date.now() - startTime
+
+    // 转换步骤格式
+    const steps = result.steps.map((s) => ({
+      step: s.step,
+      action: s.action as AgenticResult['steps'][0]['action'],
+      rationale: s.rationale,
+      bbox: s.bbox,
+      factor: s.factor,
+      gridSize: s.grid_size,
+      labels: s.labels,
+      answer: s.answer,
+      imagePath: s.image_path,
+    }))
+
+    return {
+      answer: result.answer,
+      confidence: result.confidence,
+      steps,
+      traceImages: result.trace_images,
+      totalLatencyMs: result.total_latency_ms ?? latencyMs,
+      model: result.model,
+      sessionId: result.session_id,
+      traceDir: result.trace_dir,
+      maxStepsReached: result.max_steps_reached,
     }
   }
 }

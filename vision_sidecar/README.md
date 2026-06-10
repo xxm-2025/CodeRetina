@@ -1,6 +1,6 @@
 # Vision Sidecar
 
-Claude Code Vision 项目的 Python 视觉处理服务，通过 stdio JSON-RPC 与 TypeScript 主进程通信。
+CodeRetina 项目的 Python 视觉处理服务，通过 stdio JSON-RPC 与 TypeScript 主进程通信。
 
 ## 功能
 

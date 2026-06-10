@@ -199,3 +199,73 @@ export interface CacheConfig {
   /** 是否启用持久化 */
   persistent: boolean
 }
+
+// ============================================================================
+// Agentic Visual Search 类型 (Sprint 5 方向 A)
+// ============================================================================
+
+/**
+ * Agentic 查询请求
+ */
+export interface AgenticRequest {
+  /** 图像路径 */
+  imagePath: string
+  /** 查询文本 */
+  prompt: string
+  /** 最大步骤数 */
+  maxSteps?: number
+  /** 基础模型 */
+  baseModel?: string
+  /** 期望的模型层级 */
+  preferredTier?: VisionModelTier
+}
+
+/**
+ * Agentic 执行步骤
+ */
+export interface AgenticStep {
+  /** 步骤序号 */
+  step: number
+  /** 动作类型 */
+  action: 'crop' | 'zoom' | 'annotate' | 'grid_split' | 'answer' | 'error'
+  /** 推理说明 */
+  rationale: string
+  /** 动作详细数据 */
+  actionData?: Record<string, unknown>
+  /** 答案（仅 answer 动作） */
+  answer?: string
+  /** 边界框（crop/annotate） */
+  bbox?: number[]
+  /** 缩放因子（zoom） */
+  factor?: number
+  /** 网格大小（grid_split） */
+  gridSize?: number[]
+  /** 标签列表 */
+  labels?: string[]
+  /** 步骤图像路径 */
+  imagePath?: string
+}
+
+/**
+ * Agentic 查询响应
+ */
+export interface AgenticResult {
+  /** 最终答案 */
+  answer: string
+  /** 置信度 (0-1) */
+  confidence: number
+  /** 执行步骤列表 */
+  steps: AgenticStep[]
+  /** 追踪图像路径列表 */
+  traceImages: string[]
+  /** 总延迟（毫秒） */
+  totalLatencyMs: number
+  /** 使用的模型 */
+  model: string
+  /** 会话 ID */
+  sessionId?: string
+  /** 追踪目录 */
+  traceDir?: string
+  /** 是否达到最大步数 */
+  maxStepsReached?: boolean
+}

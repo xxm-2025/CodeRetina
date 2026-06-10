@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Claude Code Vision —— 评测脚本骨架
+CodeRetina —— 评测脚本骨架
 
 支持的数据集:
 - Design2Code: 截图到代码任务
@@ -353,7 +353,7 @@ def save_report(report: EvaluationReport, output_path: str) -> None:
     # 生成 Markdown 摘要
     md_path = output_file.with_suffix(".md")
     with open(md_path, "w") as f:
-        f.write("# Claude Code Vision Evaluation Report\n\n")
+        f.write("# CodeRetina Evaluation Report\n\n")
         f.write(f"**Timestamp:** {report.timestamp}\n\n")
         f.write("## Summary\n\n")
         f.write(f"- Total tasks: {report.total_tasks}\n")
@@ -392,7 +392,7 @@ def save_report(report: EvaluationReport, output_path: str) -> None:
 
 async def main():
     """评测主入口"""
-    parser = argparse.ArgumentParser(description="Claude Code Vision Evaluation")
+    parser = argparse.ArgumentParser(description="CodeRetina Evaluation")
     parser.add_argument(
         "--dataset",
         choices=["design2code", "osworld", "visualwebarena", "all"],
@@ -430,7 +430,7 @@ async def main():
     args = parser.parse_args()
 
     logger.info("=" * 60)
-    logger.info("Claude Code Vision Evaluation")
+    logger.info("CodeRetina Evaluation")
     logger.info("=" * 60)
 
     # 加载任务

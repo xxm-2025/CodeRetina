@@ -353,7 +353,7 @@ sequenceDiagram
   "params": {
     "protocol_version": "1.0",
     "client": {
-      "name": "claude-code-vision",
+      "name": "coderetina",
       "version": "0.1.0"
     }
   }

@@ -466,6 +466,30 @@ export async function gracefulShutdown(
     clearTimeout(cleanupTimeoutId)
   }
 
+  // Skill Discovery: Reflect on session to discover reusable skills
+  // This happens after cleanup (transcript saved) but before exit hooks
+  try {
+    const { reflectSessionFromStorage } = await import(
+      '../services/skillDiscovery/sessionHook.js'
+    )
+    const reflectionResult = await Promise.race([
+      reflectSessionFromStorage(),
+      sleep(3000), // Cap at 3s to not slow down exit
+    ])
+    if (
+      reflectionResult &&
+      typeof reflectionResult === 'object' &&
+      'skills' in reflectionResult &&
+      reflectionResult.skills.length > 0
+    ) {
+      logForDebugging(
+        `[skill-discovery] Discovered ${reflectionResult.skills.length} skill(s): ${reflectionResult.skills.map((s: { name: string }) => s.name).join(', ')}`,
+      )
+    }
+  } catch {
+    // Ignore skill discovery errors during shutdown
+  }
+
   // Execute SessionEnd hooks. Bound both the per-hook default timeout and the
   // overall execution via a single budget (CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS,
   // default 1.5s). hook.timeout in settings is respected up to this cap.

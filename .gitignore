@@ -1,0 +1,64 @@
+# macOS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.key
+*.pem
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+bun.lockb
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.report_venv/
+
+# Model and vector-store caches
+models/
+checkpoints/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.lance/
+*.lancedb/
+
+# Generated outputs
+REPORT.md
+REPORT.pdf
+REPORT.html
+vision_sidecar/test_output/
+eval/results/
+poster_assets/
+poster_CodeRetina.*
+test_data/**/test_report.txt
+
+# Course handouts / local presentation drafts
+《大模型驱动的软件开发》选题报告流程说明.pdf
+20260605-181621.jpeg
+2023012484_CodeRetina.pptx
+课程汇报准备_工作记录.md
+INTERNSHIP_PROJECT.md

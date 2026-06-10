@@ -24,7 +24,7 @@ DEMO_DIR="$PROJECT_DIR/demo_sprint3"
 
 echo -e "${BLUE}"
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         Claude Code Vision — Sprint 3 Demo                 ║"
+echo "║         CodeRetina — Sprint 3 Demo                 ║"
 echo "║  Visual Debug + GUI Agent (Local/Remote)                 ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"

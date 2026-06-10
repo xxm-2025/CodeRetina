@@ -29,7 +29,7 @@ DEMO_DIR="$PROJECT_DIR/demo_sprint4"
 
 echo -e "${BLUE}"
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         Claude Code Vision — Sprint 4 Demo                 ║"
+echo "║         CodeRetina — Sprint 4 Demo                 ║"
 echo "║  SigLIP2 + LanceDB + /recall + /live + REPORT              ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"

@@ -1,4 +1,4 @@
-# Claude Code Vision 测试套件
+# CodeRetina 测试套件
 
 针对 PLAN.md 中 Sprint 0-2 的测试，设计目标是**真正能检验出问题**。
 

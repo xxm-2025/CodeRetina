@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Claude Code Vision —— 本地 VLM 模型下载脚本
+# CodeRetina —— 本地 VLM 模型下载脚本
 #
 # 用途: 下载 Sprint 1-3 所需的本地模型
 # 支持模型:
@@ -22,7 +22,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 配置
-MODELS_DIR="${MODELS_DIR:-$HOME/.claude-code-vision/models}"
+MODELS_DIR="${MODELS_DIR:-$HOME/.coderetina/models}"
 HUGGINGFACE_CACHE="${HF_HOME:-$HOME/.cache/huggingface}"
 
 # 模型配置
@@ -40,7 +40,7 @@ OMNIPARSER_DIR="$MODELS_DIR/omniparser-v2"
 print_header() {
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║       Claude Code Vision — 模型下载脚本                  ║"
+    echo "║       CodeRetina — 模型下载脚本                  ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
     echo "模型将下载到: $MODELS_DIR"
@@ -66,7 +66,7 @@ print_help() {
     echo "  --help         显示帮助"
     echo ""
     echo "环境变量:"
-    echo "  MODELS_DIR     模型下载目录 (默认: ~/.claude-code-vision/models)"
+    echo "  MODELS_DIR     模型下载目录 (默认: ~/.coderetina/models)"
     echo "  HF_HOME        HuggingFace 缓存目录"
     echo "  HF_TOKEN       HuggingFace 访问令牌(用于 gated 模型)"
 }
