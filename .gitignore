@@ -32,6 +32,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.venv-docx/
 venv/
 .report_venv/
 
