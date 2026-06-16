@@ -48,9 +48,11 @@ checkpoints/
 *.lancedb/
 
 # Generated outputs
+PLAN.md
 REPORT.md
 REPORT.pdf
 REPORT.html
+assets/
 vision_sidecar/test_output/
 eval/results/
 poster_assets/

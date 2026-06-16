@@ -52,9 +52,9 @@ CodeRetina/
 │   └── commands/          # /gui /design2code /visual-debug /replay /doc
 ├── vision_sidecar/        # Python vision sidecar
 ├── scripts/               # Demo and test scripts
-├── docs/                  # Sprint summaries and design notes
-├── REPORT.md              # Course report source
-└── REPORT.pdf             # Course report PDF
+├── docs/                  # Architecture and protocol notes
+├── tests/                 # Focused regression tests
+└── eval/                  # Lightweight benchmark fixtures and runners
 ```
 
 ## Representative Demos
@@ -75,13 +75,6 @@ uv run python -m vision_sidecar.server --echo-test
 
 Optional model backends may require additional local model files or cloud API configuration. Do not commit API keys or local model weights.
 
-## Course Report
-
-The course report is available as:
-
-- `REPORT.md`
-- `REPORT.pdf`
-
 ## Notes
 
-This repository is organized for course project submission and demonstration. Generated outputs, model weights, local caches, and temporary report-rendering files are excluded through `.gitignore`.
+This repository is organized as the runnable CodeRetina project. Generated outputs, model weights, local caches, planning notes, report files, and temporary assets are excluded through `.gitignore`.
